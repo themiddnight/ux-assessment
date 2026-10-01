@@ -151,6 +151,7 @@ export class Session {
     this.lastImg = null; // decoded post-screenshot of the previous step (or the initial one)
     this.animMasks = []; // diff(last, pre) of the last 3 steps: what changed with nobody acting
     this.pendingNotes = []; // persona-visible things a screenshot cannot show (native dialogs, new tabs)
+    this.closedTabs = []; // URLs of tabs that closed, not yet reported (see #reportClosedTabs)
     this.queue = Promise.resolve();
   }
 
@@ -480,13 +481,7 @@ export class Session {
       if (page !== this.page || this.stopped || this.creatingPage) return;
       const url = page.url();
       this.page = this.context.pages().filter((p) => !p.isClosed()).at(-1) ?? null;
-      // When the browser itself quits, each page closes just before the context does: that is not the
-      // app closing its tab. The signal and the note wait a moment for the context's own close.
-      this.#track(Promise.race([this.contextClosed, sleep(50)]).then(() => {
-        if (this.browserGone || this.stopped) return;
-        this.#signal('page-closed', { url });
-        this.pendingNotes.push('The tab closed.');
-      }));
+      this.closedTabs.push(url);
     });
     page.on('load', () => {
       if (page === this.page) this.crashed = false;
@@ -695,6 +690,7 @@ export class Session {
   #browserClosed() {
     if (this.stopped || this.browserGone) return;
     this.browserGone = true;
+    this.closedTabs.length = 0; // its pages closed because the browser quit, not because the app closed a tab
     this.over ??= 'BROWSER_CLOSED';
     this.#signal('browser-closed', {});
     this.pendingNotes.push('The browser quit unexpectedly: its window is gone and it cannot be opened again. Call end_session now.');
@@ -1026,7 +1022,18 @@ export class Session {
     return { ok: false, refused: true, text: `${why} Nothing was done. Call end_session now with your exit interview.` };
   }
 
+  // A closed tab is reported with the next step's result (or at stop), not when it closes. When the
+  // browser itself quits, each page closes before the context does, and no fixed wait tells that from
+  // the app closing its tab: on a slow machine the context's close came later than any such wait.
+  #reportClosedTabs() {
+    for (const url of this.closedTabs.splice(0)) {
+      this.#signal('page-closed', { url });
+      this.pendingNotes.push('The tab closed.');
+    }
+  }
+
   #statusText(actionError, noScreen = false) {
+    this.#reportClosedTabs();
     const lines = [];
     const counted = this.steps === 0 ? 'Free first look' : `Step ${this.steps} of ${this.cap}`;
     const patience = this.patienceBudget != null ? ` · frustration ${this.frustration}/${this.patienceBudget}` : '';
@@ -1093,6 +1100,7 @@ export class Session {
   stop() {
     return this.#serial(async () => {
       if (this.stopped) return;
+      this.#reportClosedTabs();
       const audio = await this.#audio();
       const opfs = await this.#evalNoGesture('window.__uxOpfsFiles?.() ?? null').catch(() => null);
       this.#signal('stop', { steps: this.steps, frustration: this.frustration, over: this.over, ended: this.ended, outcome: this.outcome ?? null, stop_before: this.stopBeforeReached, page_time_ms: this.#pageTime(), audio, audio_session: this.#audioSession(), opfs });
