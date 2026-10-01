@@ -48,13 +48,13 @@ reports are what move "experimental" to "tested".
 
 - CI (macOS, Windows and Ubuntu: the driver tests, the installer with a real directory junction on
   Windows, and the offline Codex gate) runs on every push to `main` and on every pull request; the
-  badge at the top shows its state. Before publication it ran on Windows and Ubuntu only. It ran green
-  on 2026-09-29 and again on 2026-10-01, on Windows and Ubuntu. Earlier runs failed: one timed out on
-  Windows in the safety tests, and on 2026-10-01 two flaky failures (a test race on Windows and a
-  driver defect on Ubuntu with Node 22) were found by CI and fixed. That is a short track record,
-  which is why the matrix says "should work".
-- macOS is in the CI matrix and has not run yet: it first runs on the public repository. Until then it
-  is tested locally.
+  badge at the top shows its state. It ran green on Windows and Ubuntu on 2026-09-29 and on
+  2026-10-01. macOS first ran on 2026-10-01; that day CI ran green on all three, macOS included,
+  twice: on the last commit before publication and on the first public commit. Earlier runs failed:
+  one timed out on Windows in the safety tests, and on 2026-10-01 three failures (a test race on
+  Windows, a driver defect on Ubuntu with Node 22 and a driver defect on Windows in the download
+  note) were found by CI and fixed. That is a short track record, which is why the matrix says
+  "should work".
 - `.github/workflows/codex-canary.yml`, the full self-check with a model on macOS, Windows and Ubuntu, has
   never run: it needs an `OPENAI_API_KEY` repository secret.
 - Codex has not been run on a real Windows or Linux machine. On Windows, the CI installer step shows that Node

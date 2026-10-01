@@ -172,7 +172,8 @@ test('README: honest status — nothing claims CI or a real Windows machine veri
   const ci = YAML.parse(read('.github/workflows/ci.yml'));
   assert.ok(ci.jobs.test.strategy.matrix.os.includes('macos-latest'));
   assert.doesNotMatch(status, /macOS is not in the CI matrix/);
-  assert.match(status, /macOS is in the CI matrix and has not run yet/); // it first runs on the public repository
+  assert.doesNotMatch(status, /macOS is in the CI matrix and has not run yet/);
+  assert.match(status, /macOS first ran on 2026-10-01/);
   assert.ok(text.includes(`https://github.com/${ownerOf(ROOT)}/ux-assessment/actions/workflows/ci.yml/badge.svg`));
   assert.match(read('knowledge/cost.md'), /57 %/); // the README figure comes from here
   assert.ok(text.includes(`/plugin marketplace add ${ownerOf(ROOT)}/ux-assessment`));

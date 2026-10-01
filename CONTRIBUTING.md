@@ -48,7 +48,7 @@ npx -y @anthropic-ai/claude-code plugin validate .
 npx -y @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json
 ```
 
-CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests: macOS, Windows and Ubuntu with Node 20 (plus Node 22 on Ubuntu), the tests, the offline Codex gate, the installer, the manifest validation and `gitleaks`. It has run green on Windows and Ubuntu; macOS is in the matrix but has not run yet, because it first runs on the public repository. Two flaky failures were found and fixed on 2026-10-01, and an earlier run failed on Windows with a timeout in `driver/test/safety.test.mjs`; if the Windows job fails there, re-run it once before you dig.
+CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests: macOS, Windows and Ubuntu with Node 20 (plus Node 22 on Ubuntu), the tests, the offline Codex gate, the installer, the manifest validation and `gitleaks`. It has run green on macOS, Windows and Ubuntu (macOS since 2026-10-01). Three failures were found and fixed on 2026-10-01, and an earlier run failed on Windows with a timeout in `driver/test/safety.test.mjs`; if the Windows job fails there, re-run it once before you dig.
 
 ## Isolation invariants
 
