@@ -1,6 +1,6 @@
 {
   "name": "ux-assessment",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Assess web app usability with simulated users in isolated browser sessions.",
   "author": { "name": "Pathompong Thitithan" },
   "homepage": "https://github.com/themiddnight/ux-assessment",

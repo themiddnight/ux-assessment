@@ -10,7 +10,7 @@
     {
       "name": "ux-assessment",
       "source": "./",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "description": "Run simulated users (personas played by subagents) against your web app before real people try it, then get a triaged UX report."
     }
   ]
