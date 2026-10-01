@@ -83,5 +83,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v3
+        # The action's own Node code prints DEP0040 (punycode) and DEP0169 (url.parse); disable only
+        # those two codes, for this step only (see "Codex CLI from npm" above).
         env:
+          NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
