@@ -30,6 +30,11 @@ const PRE_GAP_MS = 150; // two pre shots this far apart show what is animating r
 const INSTALL_LEAD_MS = 1000; // the page clock pauses this far after install, while only about:blank is open
 const STREAMS = new Set(['eventsource', 'media']); // requests that stay open by design: never waited for
 const TARGET_CLOSED = /Target page, context or browser has been closed/i; // Playwright's own "the target is gone" error
+// An action cut short by "the target is gone" waits this long for the context's own close before it
+// counts as the app's failure. A browser that quits closes its pages first; on a slow machine the
+// context closed more than 50 ms later (macOS CI), so the wait is generous. It ends as soon as the
+// context closes, and it costs time only when a tab really closed under an action.
+const BROWSER_QUIT_GRACE_MS = 2000;
 const BROWSER_GONE = 'the browser quit unexpectedly'; // the browser process went away under the session
 const RESPONSE_SETTLE_MS = 50; // after a response, the page handles it before page time moves on
 // On Windows, Chrome can still hold files of its profile (Default/chrome_debug.log) for a moment
@@ -703,7 +708,7 @@ export class Session {
       return await this.context.newPage();
     } catch (e) {
       // The context's own close event can land just after this rejection: wait for it, briefly.
-      if (TARGET_CLOSED.test(e.message)) await Promise.race([this.contextClosed, sleep(250)]);
+      if (TARGET_CLOSED.test(e.message)) await Promise.race([this.contextClosed, sleep(BROWSER_QUIT_GRACE_MS)]);
       throw this.browserGone ? new Error(BROWSER_GONE) : e;
     }
   }
@@ -985,7 +990,7 @@ export class Session {
           return { ok: false, text: `INVALID_ACTION: ${clip(e.message.split('\n')[0], 120)}. No step was used.` };
         }
         // An action cut short by the browser quitting is not the app's failure: browser-closed says it.
-        if (TARGET_CLOSED.test(e.message)) await Promise.race([this.contextClosed, sleep(250)]);
+        if (TARGET_CLOSED.test(e.message)) await Promise.race([this.contextClosed, sleep(BROWSER_QUIT_GRACE_MS)]);
         if (!this.browserGone) {
           actionError = clip(e.message.split('\n')[0]);
           this.#signal('action-error', { action: action.type, msg: actionError });
