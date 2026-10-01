@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Timer fixture</title>
+<style>
+  body { font: 16px sans-serif; margin: 0; }
+  #go { position: absolute; left: 20px; top: 20px; width: 200px; height: 60px; }
+  #field { position: absolute; left: 20px; top: 100px; width: 200px; height: 24px; }
+  #out { position: absolute; left: 20px; top: 140px; }
+</style>
+<button id="go">Go</button>
+<input id="field">
+<div id="out"><p id="timer">13:00</p><p id="status">idle</p><p id="banner"></p><p id="raw"></p><p id="thai"></p></div>
+<script>
+  // Query switches (driver/test/controlled-clock.test.mjs, felt.test.mjs):
+  //   banner=<ms>    "Time is up!" appears after <ms> of page time
+  //   notify=<ms>    a Notification is created after <ms>; nothing visible changes
+  //   vibrate=load   navigator.vibrate(100) at load, before any gesture (Chrome refuses it)
+  //   vibrate=click  navigator.vibrate(200) when Go is pressed
+  //   fetchAt=<ms>   after <ms>, fetch /slow?ms=<slow> (default 1500) with no loading text
+  //   hang           fetch /hang (never answers) at load
+  //   raf            a heavy requestAnimationFrame loop
+  //   throw[=<ms>]   a timer that throws at +<ms> (default 500) of page time
+  //   countdown=<n>  an unpadded countdown from <n>, ticking every second, shown in #raw (ASCII
+  //                  digits, e.g. "10" -> "9") and #thai (the same count in Thai numerals)
+  // Go: shows "loading", fetches basic.html, then setTimeout(0) shows "loaded".
+  // Every fetch has the app's own 1 s client timeout, counted in page time.
+  const q = new URLSearchParams(location.search);
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, '0');
+  // A per-tick countdown, the shape fastForward breaks (SPIKE.md, "Harness clock"): it subtracts 1 on every tick, so it needs every tick fired.
+  let left = 780;
+  window.ticks = 0;
+  setInterval(() => { left--; window.ticks++; $('timer').textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; }, 1000);
+  if (q.has('banner')) setTimeout(() => { $('banner').textContent = 'Time is up!'; }, Number(q.get('banner')));
+  if (q.has('notify')) setTimeout(() => { new Notification('Reminder'); }, Number(q.get('notify')));
+  if (q.get('vibrate') === 'load') navigator.vibrate(100);
+  if (q.has('hang')) fetch('/hang').catch(() => {});
+  if (q.has('raf')) {
+    const loop = () => { let x = 0; for (let i = 0; i < 1e6; i++) x += i; window.sink = x; requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+  if (q.has('throw')) setTimeout(() => { throw new Error('boom from a timer'); }, Number(q.get('throw')) || 500);
+  if (q.has('countdown')) {
+    const thaiDigits = '๐๑๒๓๔๕๖๗๘๙';
+    const toThai = (s) => [...s].map((c) => (c >= '0' && c <= '9' ? thaiDigits[c] : c)).join('');
+    let c = Number(q.get('countdown'));
+    const show = () => { $('raw').textContent = String(c); $('thai').textContent = toThai(String(c)); };
+    show();
+    setInterval(() => { if (c > 0) c--; show(); }, 1000); // stops at 0: a '-' would change the signature
+  }
+  async function load(url, showLoading) {
+    if (showLoading) $('status').textContent = 'loading';
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 1000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      await r.text();
+      clearTimeout(timeout);
+      setTimeout(() => { $('status').textContent = 'loaded'; }, 0);
+    } catch { $('status').textContent = 'timed out'; }
+  }
+  if (q.has('fetchAt')) setTimeout(() => load(`/slow?ms=${q.get('slow') ?? 1500}`, false), Number(q.get('fetchAt')));
+  $('go').onclick = () => {
+    if (q.get('vibrate') === 'click') navigator.vibrate(200);
+    load('basic.html', true);
+  };
+</script>

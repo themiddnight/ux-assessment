@@ -1,0 +1,19 @@
+<!doctype html>
+<title>Safety fixture</title>
+<style>body{margin:0;font:16px sans-serif} .b{position:absolute;left:100px;width:160px;height:36px}</style>
+<a id="away" class="b" style="top:100px" href="http://example.invalid/">Visit partner</a>
+<button id="pay" class="b" style="top:160px">Pay now</button>
+<button id="track" class="b" style="top:220px">Track</button>
+<a id="ext" class="b" style="top:280px">External docs</a>
+<button id="popup" class="b" style="top:340px">Open checkout</button>
+<p id="out" style="position:absolute;left:300px;top:160px">idle</p>
+<script>
+  const q = new URLSearchParams(location.search);
+  const out = document.getElementById('out');
+  if (q.get('ext')) document.getElementById('ext').href = q.get('ext');
+  if (q.get('cdn')) { const s = document.createElement('script'); s.src = q.get('cdn'); document.head.appendChild(s); }
+  const call = (url) => fetch(url, { method: 'POST' }).then((r) => { out.textContent = 'status ' + r.status; }, () => { out.textContent = 'failed'; });
+  document.getElementById('pay').onclick = () => call('/api/pay');
+  document.getElementById('track').onclick = () => call('/api/track');
+  document.getElementById('popup').onclick = () => window.open(q.get('popup') || 'http://example.invalid/checkout', '_blank', q.get('features') || '');
+</script>

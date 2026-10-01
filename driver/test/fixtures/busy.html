@@ -1,0 +1,8 @@
+<!doctype html>
+<title>Busy main thread fixture</title>
+<input id="field" style="position:absolute;left:100px;top:200px;width:200px">
+<button id="busy" style="position:absolute;left:100px;top:100px;width:120px;height:40px">Busy</button>
+<script>
+  // Blocks the main thread for 40 s shortly after the click (the click itself returns at once).
+  document.getElementById('busy').onclick = () => setTimeout(() => { const t = Date.now(); while (Date.now() - t < 40000); }, 50);
+</script>

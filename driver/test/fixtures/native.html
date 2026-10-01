@@ -1,0 +1,49 @@
+<!doctype html>
+<title>Native surfaces fixture</title>
+<style>body{margin:0;font:14px sans-serif} .c{position:absolute;left:100px;width:180px;height:30px} .o{position:absolute;left:320px;margin:0}</style>
+<input id="file" class="c" style="top:100px" type="file" accept=".txt,image/png" multiple>
+<input id="date" class="c" style="top:160px" type="date">
+<input id="time" class="c" style="top:220px" type="time">
+<input id="color" class="c" style="top:280px" type="color" value="#000000">
+<button id="mic" class="c" style="top:340px">Record</button>
+<button id="notify" class="c" style="top:390px">Notify me</button>
+<button id="geo" class="c" style="top:440px">Where am I</button>
+<input id="single" class="c" style="top:500px" type="file">
+<p id="out-file" class="o" style="top:100px">no file</p>
+<p id="out-date" class="o" style="top:160px">no date</p>
+<p id="out-time" class="o" style="top:220px">no time</p>
+<p id="out-color" class="o" style="top:280px">no color</p>
+<p id="out-perm" class="o" style="top:340px">idle</p>
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('file').addEventListener('change', (e) => { $('out-file').textContent = [...e.target.files].map((f) => `${f.name}:${f.size}`).join(','); });
+  // React-style controlled input: React keeps an own "value" property on the element to track what it
+  // last rendered and ignores input events whose value equals it. Setting input.value directly
+  // (instead of the native setter) would be ignored, and the next render would undo it.
+  const native = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  const controlled = {};
+  function control(id) {
+    const input = $(id);
+    let tracked = native.get.call(input);
+    controlled[id] = tracked;
+    Object.defineProperty(input, 'value', { configurable: true, get() { return native.get.call(this); }, set(v) { tracked = String(v); native.set.call(this, v); } });
+    const onChange = () => {
+      const v = native.get.call(input);
+      if (v === tracked) return;
+      tracked = v;
+      controlled[id] = v;
+      $(`out-${id}`).textContent = `state ${v}`;
+      window.rerender();
+    };
+    input.addEventListener('input', onChange);
+    input.addEventListener('change', onChange);
+  }
+  window.rerender = () => { for (const id of Object.keys(controlled)) $(id).value = controlled[id]; };
+  ['date', 'time', 'color'].forEach(control);
+  const say = (t) => { $('out-perm').textContent = t; };
+  let mics = 0;
+  $('mic').onclick = () => navigator.mediaDevices.getUserMedia({ audio: true })
+    .then((s) => { mics++; say(`mic ok ${mics} ${s.getAudioTracks().length}`); }, (e) => say(`mic ${e.name}`));
+  $('notify').onclick = () => Notification.requestPermission().then((p) => say(`notify ${p}`));
+  $('geo').onclick = () => navigator.geolocation.getCurrentPosition((p) => say(`geo ${p.coords.latitude},${p.coords.longitude}`), (e) => say(`geo error ${e.code}`));
+</script>

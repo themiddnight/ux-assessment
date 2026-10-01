@@ -1,0 +1,11 @@
+<!doctype html>
+<title>Autoplay fixture</title>
+<p>Plays on load</p>
+<script>
+  window.addEventListener('load', () => {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    osc.connect(ctx.destination);
+    osc.start();
+  });
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counter fixture</title>
+<style>body{margin:0;font:16px sans-serif} #inc{position:absolute;left:100px;top:100px;width:120px;height:40px}
+#field{position:absolute;left:100px;top:200px;width:200px} #tall{height:3000px}</style>
+<button id="inc">Add one</button>
+<input id="field" aria-label="Name">
+<p id="count" style="position:absolute;left:300px;top:100px">0</p>
+<a id="next" href="basic.html?page=2" style="position:absolute;left:100px;top:300px">Next page</a>
+<div id="tall"></div>
+<script>
+  let n = 0;
+  document.getElementById('inc').onclick = () => { document.getElementById('count').textContent = String(++n); };
+</script>

@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+.claude/launch.json
+.serena/
+.superpowers/
+work/
+.ux-assessment/
+# Scratch output from local runs of the driver or the plugin on this repo
+.ux-assessment/runs/*/*/screenshots/
+.ux-assessment/runs/*/*/log.jsonl
+.ux-assessment/runs/*/*/signals.jsonl
+.ux-assessment/runs/*/*/downloads/

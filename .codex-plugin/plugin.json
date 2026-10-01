@@ -1,0 +1,19 @@
+{
+  "name": "ux-assessment",
+  "version": "0.3.0",
+  "description": "Assess web app usability with simulated users in isolated browser sessions.",
+  "author": { "name": "Pathompong Thitithan" },
+  "homepage": "https://github.com/themiddnight/ux-assessment",
+  "repository": "https://github.com/themiddnight/ux-assessment",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "UX Assessment",
+    "shortDescription": "Run simulated users through a web app and triage their experience.",
+    "longDescription": "Plans and runs browser-based persona assessments using a shared Playwright driver and a locally isolated Codex persona process.",
+    "developerName": "Pathompong Thitithan",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": "Assess the usability of my running web app."
+  }
+}

@@ -1,0 +1,5 @@
+<!doctype html>
+<title>Unsaved changes fixture</title>
+<textarea id="t" style="position:absolute;left:100px;top:100px;width:200px;height:60px"></textarea>
+<a href="basic.html" style="position:absolute;left:100px;top:200px">Leave</a>
+<script>addEventListener('beforeunload', (e) => { if (document.getElementById('t').value) e.preventDefault(); });</script>

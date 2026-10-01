@@ -1,0 +1,24 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modal fixture</title>
+<button id="save" style="position:absolute;left:100px;top:100px;width:120px;height:40px">Save</button>
+<button id="menu" style="position:absolute;left:260px;top:100px;width:120px;height:40px">Menu</button>
+<p id="status" style="position:absolute;left:100px;top:160px">idle</p>
+<dialog id="busy"><p>Saving...</p></dialog>
+<dialog id="m" style="width:300px;height:200px">
+  <select id="s" style="width:160px"><option value="a">Alpha</option><option value="b">Bravo</option></select>
+</dialog>
+<script>
+  const $ = (id) => document.getElementById(id);
+  // Like the music app: a modal "Saving..." overlay is shown while the picker is open.
+  $('save').onclick = async () => {
+    $('busy').showModal();
+    try {
+      const h = await showSaveFilePicker({ suggestedName: 'x.txt' });
+      const w = await h.createWritable(); await w.write('x'); await w.close();
+      $('status').textContent = 'saved';
+    } catch (e) { $('status').textContent = 'failed ' + e.name; } finally { $('busy').close(); }
+  };
+  $('menu').onclick = () => $('m').showModal();
+  $('s').onchange = () => { $('status').textContent = 'chose ' + $('s').value; };
+</script>

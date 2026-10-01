@@ -1,0 +1,21 @@
+{
+  "name": "ux-assessment-driver",
+  "version": "0.3.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Persona browser driver for the ux-assessment plugin: one Chromium per persona, exposed over MCP.",
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "playwright": "^1.63.0",
+    "pngjs": "^7.0.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}

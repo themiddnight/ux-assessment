@@ -1,0 +1,51 @@
+name: codex-canary
+# The full Codex self-check (SPEC D26, D29): canaries plus one real persona run, one small model call
+# per OS. Manual only: it needs the OPENAI_API_KEY repository secret, which forks never receive.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: driver/package-lock.json
+      - name: Driver dependencies
+        working-directory: driver
+        run: npm ci
+      - name: Playwright Chromium
+        working-directory: driver
+        run: node node_modules/playwright/cli.js install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium
+      - name: Codex CLI from npm
+        # Same scoped deprecation opt-out as ci.yml (DEP0040, DEP0169 come from @openai/codex's dependencies).
+        env:
+          NODE_OPTIONS: --disable-warning=DEP0040 --disable-warning=DEP0169
+        run: npm install -g @openai/codex@latest
+      - name: Locate the native codex binary
+        run: echo "UXA_CODEX_BIN=$(node .github/scripts/find-codex-bin.mjs "$(npm root -g)")" >> "$GITHUB_ENV"
+      - name: Sign in with the API key (stdin, never on the command line)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: printenv OPENAI_API_KEY | "$UXA_CODEX_BIN" login --with-api-key
+      - name: Full self-check (one small model call)
+        run: node driver/codex-runner.mjs self-check --json > "self-check-${{ matrix.os }}.json"
+      - name: Upload the self-check result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: self-check-${{ matrix.os }}
+          path: self-check-${{ matrix.os }}.json
+          if-no-files-found: ignore

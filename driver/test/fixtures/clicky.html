@@ -1,0 +1,31 @@
+<!doctype html>
+<title>Click edge cases</title>
+<style>button{position:absolute;left:100px;width:160px;height:36px}</style>
+<button id="nav-down" style="top:20px">Navigate on mousedown</button>
+<button id="nav-click" style="top:70px">Navigate on click</button>
+<button id="file" style="top:120px">File input</button>
+<button id="native-save" style="top:170px">Native save picker</button>
+<button id="remove" style="top:220px">Remove self on mousedown</button>
+<button id="iframe-cover" style="top:270px">Cover with iframe on mousedown</button>
+<button id="block" style="top:320px">Block main thread 3s</button>
+<button id="confirm" style="top:370px">Confirm on mousedown</button>
+<button id="popup" style="top:420px">Open new tab</button>
+<button id="close" style="top:470px">Open a tab that can close itself</button>
+<input type="file" id="fi" style="display:none">
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('nav-down').onmousedown = () => { location.href = 'basic.html?from=down'; };
+  $('nav-click').onclick = () => { location.href = 'basic.html?from=click'; };
+  $('file').onclick = () => $('fi').click();
+  $('native-save').onclick = async () => { try { await showSaveFilePicker(); } catch (e) { document.title = 'picker: ' + e.name; } };
+  $('remove').onmousedown = (e) => e.target.remove();
+  $('iframe-cover').onmousedown = () => {
+    const f = document.createElement('iframe');
+    f.src = 'basic.html'; f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0';
+    document.body.appendChild(f);
+  };
+  $('block').onclick = () => { const t = Date.now(); while (Date.now() - t < 3000); };
+  $('popup').onclick = () => window.open('basic.html?popup=1');
+  $('close').onclick = () => window.open('closer.html');
+  $('confirm').onmousedown = () => { document.title = 'confirm: ' + confirm('Sure?'); };
+</script>

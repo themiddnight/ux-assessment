@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in the plugin, the driver or the installer does not work as the README says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please remove anything from logs that you do not want public
+        (app names, paths, URLs). A finding in *your* app's UX report is not a bug here, unless the
+        finding is false because of the harness (then say which finding and why).
+  - type: dropdown
+    id: harness
+    attributes:
+      label: Harness
+      options: [Claude Code, Codex]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "`node --version`, the harness version, and the ux-assessment version or commit."
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The command or request you gave, and the mode (Quick, Guided, Expert, unattended, verify).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Installer output, the error message, or the relevant lines of a persona `log.jsonl`.
+      render: text

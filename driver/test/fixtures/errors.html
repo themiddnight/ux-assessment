@@ -1,0 +1,15 @@
+<!doctype html>
+<title>Errors fixture</title>
+<button id="throw" style="position:absolute;left:100px;top:100px;width:120px;height:40px">Throw</button>
+<button id="alert" style="position:absolute;left:100px;top:200px;width:120px;height:40px">Alert</button>
+<button id="dl" style="position:absolute;left:100px;top:300px;width:120px;height:40px">Download</button>
+<script>
+  document.getElementById('throw').onclick = () => { console.error('boom logged'); throw new Error('boom thrown'); };
+  document.getElementById('alert').onclick = () => { alert('Hello from alert'); document.title = 'after alert'; };
+  document.getElementById('dl').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['hello'], { type: 'text/plain' }));
+    a.download = 'hello.txt';
+    a.click();
+  };
+</script>

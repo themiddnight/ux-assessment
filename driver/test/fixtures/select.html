@@ -1,0 +1,18 @@
+<!doctype html>
+<title>Select fixture</title>
+<select id="s" style="position:absolute;left:100px;top:100px;width:160px">
+  <option value="a">Alpha</option>
+  <optgroup label="Later">
+    <option value="b">Bravo</option>
+    <option value="c" disabled>Charlie</option>
+    <option value="d">Delta</option>
+  </optgroup>
+</select>
+<select id="bottom" style="position:absolute;left:100px;top:760px;width:160px">
+  <option>Top</option><option>Middle</option><option>Bottom</option>
+</select>
+<p id="out" style="position:absolute;left:300px;top:100px">none</p>
+<script>
+  const s = document.getElementById('s');
+  s.addEventListener('change', () => { document.getElementById('out').textContent = 'changed to ' + s.value; });
+</script>

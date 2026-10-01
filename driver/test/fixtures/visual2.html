@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Hover and slow response fixture</title>
+<style>body{margin:0;font:16px sans-serif} .b{position:absolute;left:100px;width:140px;height:40px}
+#dead{background:#eee;border:1px solid #999} #dead:hover{background:#f4a;color:#fff}
+#msg{position:absolute;left:100px;top:420px;margin:0;font-size:24px}</style>
+<button id="dead" class="b" style="top:100px">Does nothing</button>
+<button id="load" class="b" style="top:200px">Load slowly</button>
+<button id="reveal" class="b" style="top:300px">Reveal</button>
+<p id="msg" hidden>Revealed text appears here</p>
+<script>
+  // A slow response: the whole view changes 800 ms after the click, after the step has settled.
+  document.getElementById('load').onclick = () => setTimeout(() => { document.body.style.background = '#cde'; }, 800);
+  document.getElementById('reveal').onclick = () => { document.getElementById('msg').hidden = false; };
+</script>

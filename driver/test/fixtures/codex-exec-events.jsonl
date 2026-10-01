@@ -1,0 +1,8 @@
+Reading prompt from stdin...
+{"type":"thread.started","thread_id":"t1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"i1","type":"agent_message","text":"done"}}
+{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":600,"cache_write_input_tokens":0,"output_tokens":90,"reasoning_output_tokens":40}}
+{"type":"turn.completed","usage":{"input_tokens":52000,"cached_input_tokens":41000,"cache_write_input_tokens":1000,"output_tokens":3100,"reasoning_output_tokens":1800}}
+tokens used
+56,100

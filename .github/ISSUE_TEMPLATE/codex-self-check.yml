@@ -1,0 +1,63 @@
+name: Codex self-check report (Windows / Linux)
+description: Share the result of the Codex self-check. These reports are how Codex on Windows and Linux moves from experimental to tested.
+labels: [codex-self-check]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Run this from your ux-assessment checkout, after installing and after every Codex update:
+
+        ```
+        node driver/codex-runner.mjs self-check --json --project <app repo>
+        ```
+
+        It costs one small model call. A FAIL is just as useful as a PASS. If the output shows a
+        persona reading a canary, report it privately as a security issue instead (see SECURITY.md).
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [Windows, Linux, macOS]
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      description: For example Windows 11 24H2, or Ubuntu 24.04.
+    validations:
+      required: true
+  - type: input
+    id: codex_version
+    attributes:
+      label: Codex version
+      description: The `codex_version` field of the self-check JSON below, and how you installed Codex (npm, app, other).
+    validations:
+      required: true
+  - type: input
+    id: node_version
+    attributes:
+      label: Node version
+      description: "`node --version`"
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: [PASS, FAIL]
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Self-check output
+      description: The JSON printed by `node driver/codex-runner.mjs self-check --json --project <app repo>`. Remove any path you do not want public.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Antivirus or corporate policy, WSL, a custom UXA_CODEX_BIN, or a retry that behaved differently.

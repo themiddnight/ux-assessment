@@ -1,0 +1,10 @@
+{
+  "name": "ux-assessment",
+  "version": "0.3.0",
+  "description": "Run simulated users (personas played by subagents) against your web app before real people try it, then get a triaged UX report.",
+  "author": { "name": "Pathompong Thitithan" },
+  "homepage": "https://github.com/themiddnight/ux-assessment",
+  "repository": "https://github.com/themiddnight/ux-assessment",
+  "license": "MIT",
+  "keywords": ["ux", "usability", "personas", "playwright", "testing"]
+}

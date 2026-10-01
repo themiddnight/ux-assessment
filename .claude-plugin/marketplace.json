@@ -1,0 +1,17 @@
+{
+  "name": "ux-assessment",
+  "owner": {
+    "name": "Pathompong Thitithan"
+  },
+  "metadata": {
+    "description": "The ux-assessment plugin, served from this checkout."
+  },
+  "plugins": [
+    {
+      "name": "ux-assessment",
+      "source": "./",
+      "version": "0.3.0",
+      "description": "Run simulated users (personas played by subagents) against your web app before real people try it, then get a triaged UX report."
+    }
+  ]
+}

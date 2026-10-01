@@ -1,0 +1,8 @@
+<!doctype html>
+<title>Service worker fixture</title>
+<p id="out">no worker</p>
+<script>
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready)
+    .then(() => { document.getElementById('out').textContent = 'registered'; },
+      (e) => { document.getElementById('out').textContent = `refused ${e.name}`; });
+</script>

@@ -1,0 +1,18 @@
+<!doctype html>
+<title>Animated fixture</title>
+<style>body{margin:0;font:16px sans-serif}
+#spin{position:absolute;left:600px;top:100px;width:80px;height:80px}
+#reveal{position:absolute;left:100px;top:100px;width:120px;height:40px}
+#msg{position:absolute;left:100px;top:220px;margin:0;font-size:24px}</style>
+<div id="spin"><b id="cell"></b></div>
+<button id="reveal">Reveal</button>
+<p id="msg" hidden>Hello there, it worked</p>
+<script>
+  // Changes on its own the whole time, like a playhead or a spinner.
+  const spin = document.getElementById('spin');
+  const tick = (t) => { spin.style.background = `hsl(${Math.round(t / 4) % 360} 80% 50%)`; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  // A cell under the sweep: its response hides inside the animated area.
+  spin.onclick = () => { document.getElementById('cell').textContent = 'ON'; };
+  document.getElementById('reveal').onclick = () => { document.getElementById('msg').hidden = false; };
+</script>
