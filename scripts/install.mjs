@@ -1,5 +1,5 @@
 // ux-assessment installer (SPEC D27):
-//   node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only]
+//   node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only] [--chromium-only]
 // Exit codes: 0 ok, 1 missing prerequisite, 2 conflict. Conservative syntax on purpose (no optional
 // chaining, no nullish coalescing, no static import, no top-level await): a Node older than 20 must
 // reach the version message below, not a SyntaxError. The work is in install-lib.mjs.

@@ -135,7 +135,7 @@ export function manifestProblems(root) {
   const claude = json('.claude-plugin/plugin.json');
   const codex = json('.codex-plugin/plugin.json');
   const market = json('.claude-plugin/marketplace.json');
-  const driver = json('driver/package.json');
+  const pkg = json('package.json');
   const entry = market.plugins?.[0] ?? {};
   const same = (what, values) => {
     if (new Set(Object.values(values)).size !== 1) problems.push(`${what} differs: ${JSON.stringify(values)}`);
@@ -143,9 +143,9 @@ export function manifestProblems(root) {
   const license = fs.existsSync(path.join(root, 'LICENSE')) ? textOf(root, 'LICENSE') : '';
   if (!license.startsWith('MIT License\n')) problems.push('LICENSE: missing, or not the MIT text');
   if (!license.includes('\nCopyright (c) 2026 Pathompong Thitithan\n')) problems.push('LICENSE: copyright line');
-  same('license', { LICENSE: 'MIT', claude: claude.license, codex: codex.license, driver: driver.license });
+  same('license', { LICENSE: 'MIT', claude: claude.license, codex: codex.license, package: pkg.license });
   same('name', { claude: claude.name, codex: codex.name, marketplace: market.name, entry: entry.name });
-  same('version', { claude: claude.version, codex: codex.version, entry: entry.version, driver: driver.version });
+  same('version', { claude: claude.version, codex: codex.version, entry: entry.version, package: pkg.version });
   if (!/^\d+\.\d+\.\d+$/.test(claude.version ?? '')) problems.push(`version ${claude.version} is not x.y.z`);
   const owner = ownerOf(root);
   if (!owner) return [...problems, '.claude-plugin/plugin.json: repository must be the https URL of the GitHub repository'];

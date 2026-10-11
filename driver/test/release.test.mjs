@@ -22,7 +22,7 @@ const good = () => ({
   '.claude-plugin/plugin.json': manifest(),
   '.codex-plugin/plugin.json': manifest(),
   '.claude-plugin/marketplace.json': JSON.stringify({ name: 'ux-assessment', plugins: [{ name: 'ux-assessment', source: './', version: '0.3.0' }] }),
-  'driver/package.json': JSON.stringify({ name: 'ux-assessment-driver', version: '0.3.0', license: 'MIT' }),
+  'package.json': JSON.stringify({ name: 'ux-assessment', version: '0.3.0', license: 'MIT' }),
   '.github/workflows/ci.yml': 'on:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [macos-latest, windows-latest, ubuntu-24.04]\n',
   'README.md': `# x\n\n/plugin marketplace add ${OWNER}/ux-assessment\n\nWrite to persona@example.com.\n`,
 });
@@ -151,7 +151,7 @@ test('release.mjs: check prints the problems and exits 1, ok exits 0, a bad comm
 
 test('this repository: the publishable set leaves out the unpublished directories', () => {
   const files = publishableFiles(ROOT);
-  assert.ok(files.includes('README.md') && files.includes('driver/package.json'));
+  assert.ok(files.includes('README.md') && files.includes('package.json'));
   assert.deepEqual(files.filter((rel) => UNPUBLISHED.some((dir) => rel.startsWith(dir))), []);
 });
 

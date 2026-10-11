@@ -10,9 +10,9 @@ import { isExecutableFile, resolveCodexExecutables } from '../driver/codex-bin.m
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const EXIT = Object.freeze({ ok: 0, missing: 1, conflict: 2 });
-export const USAGE = 'usage: node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only]';
+export const USAGE = 'usage: node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only] [--chromium-only]';
 export const PLUGIN_ID = 'ux-assessment@ux-assessment';
-const FLAGS = new Set(['--no-claude', '--no-codex', '--skip-deps', '--deps-only']);
+const FLAGS = new Set(['--no-claude', '--no-codex', '--skip-deps', '--deps-only', '--chromium-only']);
 
 export function parseInstallArgs(argv) {
   const seen = new Set();
@@ -21,9 +21,10 @@ export function parseInstallArgs(argv) {
     if (!FLAGS.has(arg)) throw new Error(`unknown option ${arg}\n${USAGE}`);
     seen.add(arg);
   }
-  const opts = { claude: !seen.has('--no-claude'), codex: !seen.has('--no-codex'), deps: !seen.has('--skip-deps'), depsOnly: seen.has('--deps-only') };
+  const opts = { claude: !seen.has('--no-claude'), codex: !seen.has('--no-codex'), deps: !seen.has('--skip-deps'), depsOnly: seen.has('--deps-only'), chromiumOnly: seen.has('--chromium-only') };
+  if (opts.chromiumOnly && seen.size > 1) throw new Error(`--chromium-only takes no other option\n${USAGE}`);
   if (opts.depsOnly && !opts.deps) throw new Error(`--deps-only and --skip-deps together leave nothing to do\n${USAGE}`);
-  if (!opts.depsOnly && !opts.claude && !opts.codex) throw new Error(`--no-claude and --no-codex together leave nothing to install\n${USAGE}`);
+  if (!opts.depsOnly && !opts.chromiumOnly && !opts.claude && !opts.codex) throw new Error(`--no-claude and --no-codex together leave nothing to install\n${USAGE}`);
   return opts;
 }
 
@@ -105,23 +106,26 @@ export function defaultRun(cmd, args = [], { cwd, shell = false, inherit = false
   return { status: r.error ? null : r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? (r.error ? r.error.message : '') };
 }
 
-export function installDeps({ root, platform, run, execPath = process.execPath, out }) {
-  const driver = path.join(root, 'driver');
-  out(`Installing the driver dependencies in ${driver} (npm ci, then Playwright Chromium)…`);
-  // win32: npm is npm.cmd, which Node spawns only through a shell. The string is fixed; no user input reaches it.
-  const npm = platform === 'win32'
-    ? run('npm.cmd ci', [], { cwd: driver, shell: true, inherit: true })
-    : run('npm', ['ci'], { cwd: driver, inherit: true });
-  // With inherited stdio, stderr holds only a spawn error (e.g. "spawnSync npm ENOENT" when npm is missing), which printed nothing above.
-  if (npm.status !== 0) return { ok: false, message: `npm ci failed in ${driver}${npm.stderr ? ` (${npm.stderr.trim()})` : ''}; fix the error above, then rerun` };
-  const cli = path.join(driver, 'node_modules', 'playwright', 'cli.js');
-  const chromium = run(execPath, [cli, 'install', 'chromium'], { cwd: driver, inherit: true });
+/** Playwright's Chromium, through the playwright package already in <root>/node_modules. */
+export function installChromium({ root, platform, run, execPath = process.execPath }) {
+  const chromium = run(execPath, [path.join(root, 'node_modules', 'playwright', 'cli.js'), 'install', 'chromium'], { cwd: root, inherit: true });
   if (chromium.status !== 0) {
     return { ok: false, message: platform === 'linux'
-      ? `Playwright could not install Chromium. Linux may lack its system libraries: run \`npx playwright install-deps chromium\` in ${driver} (needs sudo), then rerun`
+      ? `Playwright could not install Chromium. Linux may lack its system libraries: run \`npx playwright install-deps chromium\` in ${root} (needs sudo), then rerun`
       : 'Playwright could not install Chromium; fix the error above, then rerun' };
   }
   return { ok: true };
+}
+
+export function installDeps({ root, platform, run, execPath = process.execPath, out }) {
+  out(`Installing the driver dependencies in ${root} (npm ci, then Playwright Chromium)…`);
+  // win32: npm is npm.cmd, which Node spawns only through a shell. The string is fixed; no user input reaches it.
+  const npm = platform === 'win32'
+    ? run('npm.cmd ci', [], { cwd: root, shell: true, inherit: true })
+    : run('npm', ['ci'], { cwd: root, inherit: true });
+  // With inherited stdio, stderr holds only a spawn error (e.g. "spawnSync npm ENOENT" when npm is missing), which printed nothing above.
+  if (npm.status !== 0) return { ok: false, message: `npm ci failed in ${root}${npm.stderr ? ` (${npm.stderr.trim()})` : ''}; fix the error above, then rerun` };
+  return installChromium({ root, platform, run, execPath });
 }
 
 export function claudeCommands(root) {
@@ -231,10 +235,22 @@ export async function main({ argv = process.argv.slice(2), env = process.env, pl
     out(USAGE);
     return EXIT.ok;
   }
+  if (opts.chromiumOnly) {
+    // A Claude Code marketplace install already has node_modules (Claude Code installs them with the plugin) but no browser.
+    if (!fs.existsSync(path.join(root, 'node_modules', 'playwright', 'cli.js'))) {
+      err(`the playwright package is not in ${path.join(root, 'node_modules')}; run \`node "${path.join(root, 'scripts', 'install.mjs')}" --deps-only\` instead`);
+      return EXIT.missing;
+    }
+    out('Downloading Playwright Chromium…');
+    const chromium = installChromium({ root, platform, run, execPath });
+    if (!chromium.ok) { err(chromium.message); return EXIT.missing; }
+    out('Playwright Chromium installed.');
+    return EXIT.ok;
+  }
   if (opts.depsOnly) {
     const deps = installDeps({ root, platform, run, execPath, out });
     if (!deps.ok) { err(deps.message); return EXIT.missing; }
-    out(`Driver dependencies installed in ${path.join(root, 'driver')}.`);
+    out(`Driver dependencies installed in ${path.join(root, 'node_modules')}.`);
     return EXIT.ok;
   }
   const claude = opts.claude ? findClaude(env, platform) : null;

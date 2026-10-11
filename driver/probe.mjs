@@ -2,7 +2,7 @@
 //   node probe.mjs url <url>                    "<status> <final url>"; exit 1 when nothing answers in 5 s
 //   node probe.mjs now                          UTC ISO time to the second (was `date -u +%Y-%m-%dT%H:%M:%SZ`)
 //   node probe.mjs fetch <url> [--max-bytes N]  status line, blank line, text body cut at N bytes (default 200000)
-//   node probe.mjs deps                         "ok", or the missing packages and the install.mjs --deps-only command (exit 1)
+//   node probe.mjs deps                         "ok", or what is missing and the install.mjs command that adds it (exit 1)
 // No dependencies: the skills may call it before `npm ci` has run.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -13,23 +13,25 @@ export const TIMEOUT_MS = 5000;
 export const DEFAULT_MAX_BYTES = 200000;
 const USAGE = 'usage: node probe.mjs url <url> | now | fetch <url> [--max-bytes N] | deps\n';
 
-const DRIVER_DIR = path.dirname(fileURLToPath(import.meta.url));
+// package.json and node_modules are at the plugin root: Claude Code installs a plugin's dependencies only from there.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const CHROMIUM = 'playwright chromium';
 
-async function chromiumInstalled(driverDir) {
+async function chromiumInstalled(root) {
   try {
-    const { chromium } = createRequire(path.join(driverDir, 'package.json'))('playwright');
+    const { chromium } = createRequire(path.join(root, 'package.json'))('playwright');
     return fs.existsSync(chromium.executablePath());
   } catch {
     return false;
   }
 }
 
-/** The driver's npm packages and Playwright's Chromium: what a marketplace install lacks until `install.mjs --deps-only`. */
-export async function missingDeps({ driverDir = DRIVER_DIR, chromium = chromiumInstalled } = {}) {
-  const pkg = JSON.parse(fs.readFileSync(path.join(driverDir, 'package.json'), 'utf8'));
+/** The driver's npm packages, then Playwright's Chromium, which no install but `install.mjs` downloads. */
+export async function missingDeps({ root = ROOT, chromium = chromiumInstalled } = {}) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const missing = Object.keys(pkg.dependencies ?? {})
-    .filter((name) => !fs.existsSync(path.join(driverDir, 'node_modules', name, 'package.json')));
-  if (!missing.includes('playwright') && !(await chromium(driverDir))) missing.push('playwright chromium');
+    .filter((name) => !fs.existsSync(path.join(root, 'node_modules', name, 'package.json')));
+  if (!missing.includes('playwright') && !(await chromium(root))) missing.push(CHROMIUM);
   return missing;
 }
 
@@ -116,7 +118,11 @@ export async function main(argv, { out = (s) => process.stdout.write(s), err = (
     if (command === 'deps') {
       const missing = await deps();
       if (missing.length) {
-        err(`missing: ${missing.join(', ')}\nrun: node "${path.join(DRIVER_DIR, '..', 'scripts', 'install.mjs')}" --deps-only, then restart Claude Code or Codex\n`);
+        // Chromium alone needs no restart: the browser MCP server is already running and looks for it at each launch.
+        const install = `node "${path.join(ROOT, 'scripts', 'install.mjs')}"`;
+        err(`missing: ${missing.join(', ')}\nrun: ${missing.length === 1 && missing[0] === CHROMIUM
+          ? `${install} --chromium-only`
+          : `${install} --deps-only, then restart Claude Code or Codex`}\n`);
         return 1;
       }
       out('ok\n');

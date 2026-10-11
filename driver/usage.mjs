@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Token accounting (SPEC D31): usage.jsonl records, the Claude Code hook, `report` and `estimate`.
 // Top-level imports are node: builtins only: `hook` runs on every Stop of every Claude Code session with the plugin
-// on, so it must start fast and work without driver/node_modules. `estimate` loads `yaml` with a dynamic import.
+// on, so it must start fast and work without node_modules. `estimate` loads `yaml` with a dynamic import.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

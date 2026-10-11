@@ -493,8 +493,11 @@ phase 1 adds it, CI is green on the three OSes.
    `total_token_usage`. Codex's `Stop` hook gives the rollout path but no usage. The envelope is
    unconfirmed, so it is deferred: the Codex main session stays "not measured"
    (`knowledge/cost.md`).
-6. Does a Claude plugin update replace the cache directory, and with it `node_modules`? Is there a
-   persistent plugin-data directory to put them in?
+6. ~~Does a Claude plugin update replace the cache directory, and with it `node_modules`? Is there a
+   persistent plugin-data directory to put them in?~~ Answered 2026-10-12: an update installs into a new
+   version folder, and Claude Code installs the npm packages into it when `package.json` and a lock file are at
+   the plugin root (checked on 2.1.296 with a git marketplace). The manifest moved from `driver/` to the root for
+   this; `${CLAUDE_PLUGIN_DATA}` exists but is not needed. SPEC D27 has the rule.
 7. ~~The public version number~~ — decided: 0.3.0.
 8. The Codex marketplace file format, and whether `.codex-plugin/plugin.json` accepts `license`. Half answered in phase 5: plugins in a local Codex plugin cache carry `license`, `repository` and `homepage`, so those keys are accepted; Codex has no manifest validator, and the marketplace file format is still unknown.
 

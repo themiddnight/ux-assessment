@@ -130,7 +130,7 @@ test('CONTRIBUTING.md: the sections, the commands CI runs, the isolation invaria
   assert.deepEqual(headings, ['Set up', 'Run the tests', 'Isolation invariants', 'The Codex self-check',
     'Dogfood a change', 'Specs, plans and decisions', 'Pull requests', 'Reporting Windows and Linux results']);
   const code = codeOf(text).join('\n');
-  for (const cmd of ['node scripts/install.mjs --deps-only', 'cd driver && npm test',
+  for (const cmd of ['node scripts/install.mjs --deps-only', 'npm test',
     'node driver/codex-runner.mjs self-check --offline', 'npx -y @anthropic-ai/claude-code plugin validate .',
     'npx -y @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json']) {
     assert.ok(code.includes(cmd), `CONTRIBUTING.md shows ${cmd}`);

@@ -10,7 +10,6 @@ import { main, parseInstallArgs, findClaude, defaultRun, installClaude, marketpl
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ENTRY = path.join(ROOT, 'scripts', 'install.mjs');
 const SKILL = fs.realpathSync(path.join(ROOT, 'skills', 'ux-assessment'));
-const DRIVER = path.join(ROOT, 'driver');
 const noSpawn = () => { throw new Error('unexpected spawn'); };
 
 function box({ claude = null } = {}) {
@@ -50,9 +49,11 @@ function recorder(statusFor = () => 0) {
 }
 
 test('options', () => {
-  assert.deepEqual(parseInstallArgs([]), { claude: true, codex: true, deps: true, depsOnly: false });
-  assert.deepEqual(parseInstallArgs(['--no-claude', '--skip-deps']), { claude: false, codex: true, deps: false, depsOnly: false });
-  assert.deepEqual(parseInstallArgs(['--deps-only']), { claude: true, codex: true, deps: true, depsOnly: true });
+  assert.deepEqual(parseInstallArgs([]), { claude: true, codex: true, deps: true, depsOnly: false, chromiumOnly: false });
+  assert.deepEqual(parseInstallArgs(['--no-claude', '--skip-deps']), { claude: false, codex: true, deps: false, depsOnly: false, chromiumOnly: false });
+  assert.deepEqual(parseInstallArgs(['--deps-only']), { claude: true, codex: true, deps: true, depsOnly: true, chromiumOnly: false });
+  assert.deepEqual(parseInstallArgs(['--chromium-only']), { claude: true, codex: true, deps: true, depsOnly: false, chromiumOnly: true });
+  assert.throws(() => parseInstallArgs(['--chromium-only', '--deps-only']), /--chromium-only takes no other option/);
   assert.deepEqual(parseInstallArgs(['--help']), { help: true });
   assert.throws(() => parseInstallArgs(['--force']), /^Error: unknown option --force\nusage: /);
   assert.throws(() => parseInstallArgs(['--no-claude', '--no-codex']), /nothing to install/);
@@ -351,9 +352,9 @@ test('dependencies: npm ci, then Playwright Chromium through node; win32 runs np
       const r = await install(b, { argv: ['--deps-only'], platform, codex: false, run });
       assert.equal(r.code, 0, r.err);
       assert.deepEqual(calls[0], platform === 'win32'
-        ? { cmd: 'npm.cmd ci', args: [], shell: true, cwd: DRIVER }
-        : { cmd: 'npm', args: ['ci'], shell: false, cwd: DRIVER });
-      assert.deepEqual(calls[1], { cmd: process.execPath, args: [path.join(DRIVER, 'node_modules', 'playwright', 'cli.js'), 'install', 'chromium'], shell: false, cwd: DRIVER });
+        ? { cmd: 'npm.cmd ci', args: [], shell: true, cwd: ROOT }
+        : { cmd: 'npm', args: ['ci'], shell: false, cwd: ROOT });
+      assert.deepEqual(calls[1], { cmd: process.execPath, args: [path.join(ROOT, 'node_modules', 'playwright', 'cli.js'), 'install', 'chromium'], shell: false, cwd: ROOT });
       assert.equal(calls.length, 2, '--deps-only runs only the dependency step');
     }
     assert.ok(!fs.existsSync(path.join(b.home, '.codex')), '--deps-only needs no harness and links nothing');
@@ -362,13 +363,57 @@ test('dependencies: npm ci, then Playwright Chromium through node; win32 runs np
   }
 });
 
+test('--chromium-only: Playwright Chromium alone, with no npm ci and no harness step', async () => {
+  const b = box();
+  try {
+    const { run, calls } = recorder();
+    const r = await install(b, { argv: ['--chromium-only'], codex: false, run });
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(calls, [{ cmd: process.execPath, args: [path.join(ROOT, 'node_modules', 'playwright', 'cli.js'), 'install', 'chromium'], shell: false, cwd: ROOT }]);
+    assert.ok(!fs.existsSync(path.join(b.home, '.codex')));
+  } finally {
+    b.cleanup();
+  }
+});
+
+test('--chromium-only without the playwright package: exit 1 and the --deps-only command, nothing spawned', async () => {
+  const b = box();
+  try {
+    const out = [];
+    const err = [];
+    const code = await main({ argv: ['--chromium-only'], root: b.base, run: noSpawn, out: (l) => out.push(l), err: (l) => err.push(l) });
+    assert.equal(code, 1);
+    assert.match(err.join('\n'), /the playwright package is not in .+node_modules; run `node ".+install\.mjs" --deps-only` instead/);
+  } finally {
+    b.cleanup();
+  }
+});
+
+// https://code.claude.com/docs/en/plugins/loading#node-js-package-dependencies: Claude Code installs a marketplace
+// plugin's packages only from a package.json and lockfile at the plugin root, and skips the install when these do not hold.
+test('the root package.json and lockfile meet the rules of the Claude Code dependency install', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
+  assert.ok(lock.lockfileVersion === 2 || lock.lockfileVersion === 3);
+  assert.deepEqual(lock.packages[''].dependencies, pkg.dependencies);
+  assert.equal(lock.packages[''].version, pkg.version);
+  assert.equal(pkg.overrides, undefined);
+  for (const [name, entry] of Object.entries(lock.packages)) {
+    if (name === '') continue;
+    assert.match(entry.version, /^\d+\.\d+\.\d+/, name);
+    assert.match(entry.resolved, /^https:\/\/registry\.npmjs\.org\//, name);
+    assert.ok(!entry.link, name);
+  }
+  assert.ok(!fs.existsSync(path.join(ROOT, 'driver', 'package.json')), 'one package.json, at the root');
+});
+
 test('Linux: a Chromium failure prints the install-deps command instead of running it', async () => {
   const b = box();
   try {
     const { run, calls } = recorder((cmd, args) => (args.includes('chromium') ? 1 : 0));
     const r = await install(b, { argv: ['--deps-only'], platform: 'linux', codex: false, run });
     assert.equal(r.code, 1);
-    assert.match(r.err, /run `npx playwright install-deps chromium` in .+driver \(needs sudo\), then rerun/);
+    assert.match(r.err, /run `npx playwright install-deps chromium` in .+ \(needs sudo\), then rerun/);
     assert.ok(!calls.some((c) => c.args.includes('install-deps') || c.cmd.includes('install-deps')));
   } finally {
     b.cleanup();
@@ -381,7 +426,7 @@ test('an npm ci failure stops before any harness step: exit 1, no link', async (
     const { run } = recorder((cmd) => (cmd.startsWith('npm') ? 1 : 0));
     const r = await install(b, { argv: [], run });
     assert.equal(r.code, 1);
-    assert.match(r.err, /npm ci failed in .+driver/);
+    assert.match(r.err, /npm ci failed in .+; fix/);
     assert.ok(!fs.existsSync(b.skill));
   } finally {
     b.cleanup();
@@ -394,7 +439,7 @@ test('npm missing: the spawn error is part of the npm ci failure message', async
     const run = (cmd) => (cmd.startsWith('npm') ? { status: null, stdout: '', stderr: 'spawnSync npm ENOENT' } : { status: 0, stdout: '', stderr: '' });
     const r = await install(b, { argv: ['--deps-only'], platform: 'linux', codex: false, run });
     assert.equal(r.code, 1);
-    assert.match(r.err, /npm ci failed in .+driver \(spawnSync npm ENOENT\); /);
+    assert.match(r.err, /npm ci failed in .+ \(spawnSync npm ENOENT\); /);
   } finally {
     b.cleanup();
   }

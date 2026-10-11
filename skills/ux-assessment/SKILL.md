@@ -13,10 +13,17 @@ a link (a symlink, or a junction on Windows), so take the base directory's real 
 Check that `$PLUGIN/driver/codex-runner.mjs` exists; if it does not, stop and ask the user to rerun
 `node scripts/install.mjs` in their ux-assessment checkout.
 
-Then run `node "$PLUGIN/driver/probe.mjs" deps`. If it exits 1, stop: show the user its output
-(the exact `install.mjs --deps-only` command for this install) and tell them to run it and restart
-Claude Code or Codex. A marketplace install has no driver dependencies until then, and a plugin
-update may need it again. This holds in unattended mode too.
+Then run `node "$PLUGIN/driver/probe.mjs" deps`. If it exits 1, read the `run:` line it prints:
+
+- **The command ends in `--chromium-only`:** only the test browser is missing, which is normal on
+  the first run after a marketplace install or a plugin update. Tell the user in one sentence that
+  you are downloading the test browser once, run that command yourself, then run the check again
+  and continue when it prints `ok`. No restart is needed.
+- **The command ends in `--deps-only`:** the driver packages are missing. Claude Code installs
+  them with the plugin, so either that install failed or this is a checkout that was never set up.
+  Stop: show the user the output and tell them to run its command and restart Claude Code or Codex.
+
+This holds in unattended mode too.
 
 **Codex entry:** On Codex, read `$PLUGIN/codex/skills/ux-assessment/SKILL.md`
 and follow that workflow. The steps below use Claude Code agents, questions,

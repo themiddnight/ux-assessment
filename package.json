@@ -1,12 +1,12 @@
 {
-  "name": "ux-assessment-driver",
+  "name": "ux-assessment",
   "version": "0.3.1",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "Persona browser driver for the ux-assessment plugin: one Chromium per persona, exposed over MCP.",
+  "description": "Simulated-user UX assessment plugin. The dependencies are those of the persona browser driver in driver/ (one Chromium per persona, exposed over MCP).",
   "scripts": {
-    "test": "node test/run.mjs"
+    "test": "node driver/test/run.mjs"
   },
   "engines": {
     "node": ">=20"

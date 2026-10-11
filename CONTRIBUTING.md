@@ -16,14 +16,14 @@ This installs the locked driver dependencies and Playwright Chromium, and nothin
 node driver/probe.mjs deps
 ```
 
-It prints `ok`, or lists what is missing together with the command above. For a full local install for both harnesses (Claude Code and Codex), run `node scripts/install.mjs`; the README's "Install" section describes it.
+It prints `ok`, or lists what is missing together with the command that adds it. `package.json` and its lock file are at the repository root, not in `driver/`, because Claude Code installs a marketplace plugin's packages only from the plugin root. For a full local install for both harnesses (Claude Code and Codex), run `node scripts/install.mjs`; the README's "Install" section describes it.
 
-On Linux, install the `fonts-thai-tlwg` package so Thai text renders in screenshots. If Chromium does not start, run `npx playwright install-deps chromium` in `driver/` (it needs sudo).
+On Linux, install the `fonts-thai-tlwg` package so Thai text renders in screenshots. If Chromium does not start, run `npx playwright install-deps chromium` in the repository root (it needs sudo).
 
 ## Run the tests
 
 ```
-cd driver && npm test
+npm test
 ```
 
 This runs every `driver/test/*.test.mjs` file, one file at a time. To run a single file:

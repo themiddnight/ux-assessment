@@ -96,7 +96,7 @@ test('CLI: runs as a script and prints nothing on stderr', () => {
   assert.equal(r.stderr, '');
 });
 
-function fakeDriver(t, installed) {
+function fakeRoot(t, installed) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uxa-deps-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: { yaml: '^2', playwright: '^1' } }));
@@ -108,21 +108,24 @@ function fakeDriver(t, installed) {
 }
 
 test('deps: names missing packages, then a missing Chromium, else nothing', async (t) => {
-  let dir = fakeDriver(t, []);
-  assert.deepEqual(await missingDeps({ driverDir: dir, chromium: async () => true }), ['yaml', 'playwright']);
-  dir = fakeDriver(t, ['yaml']);
-  assert.deepEqual(await missingDeps({ driverDir: dir, chromium: async () => true }), ['playwright']);
-  dir = fakeDriver(t, ['yaml', 'playwright']);
-  assert.deepEqual(await missingDeps({ driverDir: dir, chromium: async () => false }), ['playwright chromium']);
-  assert.deepEqual(await missingDeps({ driverDir: dir, chromium: async () => true }), []);
+  let dir = fakeRoot(t, []);
+  assert.deepEqual(await missingDeps({ root: dir, chromium: async () => true }), ['yaml', 'playwright']);
+  dir = fakeRoot(t, ['yaml']);
+  assert.deepEqual(await missingDeps({ root: dir, chromium: async () => true }), ['playwright']);
+  dir = fakeRoot(t, ['yaml', 'playwright']);
+  assert.deepEqual(await missingDeps({ root: dir, chromium: async () => false }), ['playwright chromium']);
+  assert.deepEqual(await missingDeps({ root: dir, chromium: async () => true }), []);
 });
 
-test('deps CLI: ok and exit 0, or the --deps-only command and exit 1', async () => {
+test('deps CLI: ok and exit 0; exit 1 with --chromium-only for the browser alone, else --deps-only and a restart', async () => {
   let r = await probe(['deps'], { deps: async () => [] });
   assert.deepEqual([r.code, r.out, r.err], [0, 'ok\n', '']);
   r = await probe(['deps'], { deps: async () => ['playwright chromium'] });
   assert.equal(r.code, 1);
-  assert.match(r.err, /^missing: playwright chromium\nrun: node ".+install\.mjs" --deps-only, then restart Claude Code or Codex\n$/);
+  assert.match(r.err, /^missing: playwright chromium\nrun: node ".+install\.mjs" --chromium-only\n$/);
+  r = await probe(['deps'], { deps: async () => ['yaml', 'playwright'] });
+  assert.equal(r.code, 1);
+  assert.match(r.err, /^missing: yaml, playwright\nrun: node ".+install\.mjs" --deps-only, then restart Claude Code or Codex\n$/);
   r = await probe(['deps', 'x']);
   assert.equal(r.code, 2);
 });
@@ -137,4 +140,5 @@ test('the shared skill preamble runs the dependency check before the Codex redir
   const check = skill.indexOf('node "$PLUGIN/driver/probe.mjs" deps');
   assert.ok(check > 0 && check < skill.indexOf('**Codex entry:**'));
   assert.match(skill, /--deps-only/);
+  assert.match(skill, /--chromium-only/);
 });

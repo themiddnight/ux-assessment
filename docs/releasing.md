@@ -6,8 +6,8 @@ For the maintainer. `node scripts/release.mjs check` verifies what a machine can
 ## Every release
 
 1. Set the new version in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`,
-   `.claude-plugin/marketplace.json` and `driver/package.json` (and its lock file). The check fails when they differ.
-2. Run `cd driver && npm test`, then `node scripts/release.mjs check`. It must print `release check: ok`.
+   `.claude-plugin/marketplace.json` and `package.json` (and its lock file). The check fails when they differ.
+2. Run `npm test`, then `node scripts/release.mjs check`. It must print `release check: ok`.
 3. Merge to `main` and wait for CI to be green on macOS, Windows and Ubuntu.
 4. Prove the run is green: `gh run list --repo themiddnight/ux-assessment --workflow ci --branch main --limit 1 --json status,conclusion`
    must show `completed` and `success`, and `node scripts/release.mjs check --github themiddnight/ux-assessment`
@@ -49,7 +49,7 @@ Delete any earlier export directory first (`rm -rf ../ux-assessment-public`); th
 directory that is not empty, and you must never continue in a stale one.
 
 ```bash
-cd driver && npm test && cd ..
+npm test
 node scripts/release.mjs check
 node scripts/release.mjs export ../ux-assessment-public && cd ../ux-assessment-public
 ```
@@ -82,7 +82,7 @@ trailer, no unpublished directory, nothing private, the manifests agree).
 
 ```bash
 node scripts/install.mjs --deps-only
-cd driver && npm test && cd ..
+npm test
 npx -y @anthropic-ai/claude-code plugin validate .
 npx -y @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json
 ```
@@ -145,8 +145,9 @@ git push origin v0.3.0
 ### Step 7: Install it the way a user does
 
 On a clean machine or account, in Claude Code: `/plugin marketplace add themiddnight/ux-assessment`, then
-`/plugin install ux-assessment@ux-assessment`, then the `--deps-only` step from the README, and run one
-assessment. Optional, with your own key (one small model call per OS):
+`/plugin install ux-assessment@ux-assessment`, and run one assessment in a new session. Claude Code
+installs the driver packages with the plugin and the skill downloads the test browser on its first run, so no
+other step is needed; if the skill asks for `--deps-only`, the package install failed and `/plugin` says why. Optional, with your own key (one small model call per OS):
 
 ```bash
 gh secret set OPENAI_API_KEY --repo themiddnight/ux-assessment

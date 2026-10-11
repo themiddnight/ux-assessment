@@ -75,11 +75,15 @@ Requirements: Node.js 20+ with npm, and Claude Code, Codex, or both, signed in.
 /plugin install ux-assessment@ux-assessment
 ```
 
-The plugin cache has no browser dependencies. The first time you run the skill, it checks for them
-(`node driver/probe.mjs deps`). If they are missing, it stops and prints the exact command for your
-install, `node "<plugin dir>/scripts/install.mjs" --deps-only`; run it, then restart Claude Code. A
-plugin update installs into a new version folder, so the skill may ask again after an update. The
-skill is `ux-assessment:ux-assessment`.
+Claude Code installs the driver's npm packages together with the plugin, and again with each
+update. The first time you run the skill, and the first time after an update that needs a newer
+browser, it downloads Playwright's Chromium (`node "<plugin dir>/scripts/install.mjs"
+--chromium-only`) and then continues. The skill is `ux-assessment:ux-assessment`.
+
+If the package install did not finish (it has a 60-second limit and needs npm on your PATH), the
+skill stops and prints the command that repairs it, `node "<plugin dir>/scripts/install.mjs"
+--deps-only`; run it, then restart Claude Code. The automatic package install was checked on
+Claude Code 2.1.296; a version without it asks for that command after each install or update.
 
 ### From a clone (Claude Code and Codex)
 
@@ -89,10 +93,10 @@ cd ux-assessment
 node scripts/install.mjs
 ```
 
-`node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only]` installs the
-locked driver dependencies and Playwright Chromium, then installs for each harness it finds and
+`node scripts/install.mjs [--no-claude] [--no-codex] [--skip-deps] [--deps-only] [--chromium-only]` installs the
+locked driver dependencies (into `node_modules/` at the checkout root) and Playwright Chromium, then installs for each harness it finds and
 says which one it skipped. Exit codes: 0 done, 1 a prerequisite is missing, 2 an existing install
-is in the way (it is left untouched). Rerunning it is safe. Keep the checkout in place: both
+is in the way (it is left untouched). `--deps-only` installs only the dependencies and `--chromium-only` only the browser. Rerunning it is safe. Keep the checkout in place: both
 installs point to it.
 
 - **Claude Code:** the installer adds the checkout as the `ux-assessment` marketplace and installs
@@ -127,7 +131,7 @@ If a persona reads a canary, that is a security issue: report it privately as
 
 - **Linux:** a bare Linux has no Thai fonts, so Chromium screenshots of a Thai app show boxes that
   become false findings. Install `fonts-thai-tlwg` (or Noto) first. If Chromium does not start, run
-  `npx playwright install-deps chromium` in `driver/` (needs sudo).
+  `npx playwright install-deps chromium` in the plugin folder (needs sudo).
 - **Windows:** the owner-only file modes the driver sets on `.ux-assessment/` do nothing on Windows.
   Keep app projects inside your user profile, which is private to you by default; the driver warns
   when a project is outside it.
