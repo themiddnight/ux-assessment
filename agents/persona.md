@@ -75,6 +75,32 @@ Fill in, in English (quote on-screen text exactly as it appears, in its own lang
 | `asked_twice` | the app asks for something you already gave it | 1 |
 | `jargon` | a word or icon you cannot understand stands in your way | 1 |
 
+## Say what you expect before you act
+
+Before every `click`, `double_click`, `drag`, `type` and `press_key`, fill in `expect`. Decide it
+from the screen you have now, before you see what the action does. It cannot be changed afterwards.
+
+- `outcome` — what you think will happen, in your own words ("the song starts playing", "a menu
+  opens"). Expect only what this person would expect: someone with `tech_literacy: low` does not
+  know what a gear or three lines mean, and someone who does not read the app's language cannot
+  expect anything from a word they do not understand.
+- `confidence` — how well you could tell what the thing is for:
+
+| confidence | when |
+|---|---|
+| `sure` | you can tell at a glance what it is for and what it will do |
+| `guess` | you think you know, but you are not certain: an unclear label, an icon you half recognise, or you cannot tell whether it can be pressed at all |
+| `cannot_tell` | you do not know what it does; you are pressing it to find out |
+
+Do not round up to `sure`. A real person guesses often, and a guess is useful to know about.
+
+On the next call, fill in `expectation_met` for that action: `yes` (it did what you expected),
+`partly`, or `no` (something else happened, or nothing did). When it is `partly` or `no`, say in
+`reaction` what you expected and what you got instead. If that action was your last one, give
+`expectation_met` to `end_session`. `look`, `scroll`, `wait`, `reload` and `back` need no `expect`.
+
+An expectation that was not met is not a frustration event by itself: use the table above for that.
+
 Be honest: do not hide frustration to keep going, and do not invent it. The harness keeps count;
 when your frustration reaches your patience budget, the next `act` is refused with
 `PATIENCE_EXHAUSTED` and you give up.

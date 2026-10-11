@@ -11,6 +11,9 @@ whether the run was unattended, and a **suppress** list (titles the developer la
 - Journey: steps used, outcome (`end.outcome`), frustration curve, exit interview.
 - Friction points: every log entry with `event != none`, every `went_back`, and stretches of 3+ steps
   without progress toward the goal.
+- Expectations (§8): every row of `driver/expectations.mjs` whose pattern is `dead_control`,
+  `unexpected_result`, `partly_expected` or `control_unpredictable`. These are friction points even
+  when the persona logged `event: none` and went on.
 - Honesty audit: did the persona continue past its patience budget? Did it claim things the
   screenshot does not show? Open the screenshot for every friction point you keep.
 
@@ -110,6 +113,7 @@ check:                  # new ux findings: how a verifier gets back to the spot
   where: "Beat tab of a new loop, on a phone"               # user terms, no code or component names
   condition: "Fewer than 16 beat columns are visible and nothing shows that more exist"   # observable
 verified: false         # re-verification is M3
+expectation: null       # dead_control | unexpected_result | control_unpredictable when the finding rests on §8 rows, else null
 suppressed: false       # true when it matches the suppress list, or an intended behavior at no goal cost
 intended: null          # the charter's intended behavior it matches, if any
 ```
@@ -131,6 +135,8 @@ one observable fact that makes the finding true, checkable on one screen, or on 
    from the ledger, add "seen before" (and "came back after it was fixed" when its ledger status is
    `fixed`).
 2. **Per-persona journey** — how far each got, where they struggled or quit, exit interview.
+   **What people expected** — the table of §8, right after the journeys. Leave the section out,
+   with one line saying so under "Run facts", when no session recorded expectations.
 3. **Not tested** — from the charter, skipped personas (OAuth/OTP/2FA, no credentials), each
    stop-before boundary reached, and anything else the run could not reach.
    **Known, won't fix** — suppressed findings, one line each.
@@ -174,3 +180,54 @@ The developer labels each line later: `valid`, `not real` (with a reason in the 
   screenshots of the step in question (sN-1 → sN is what step N did); sN → sN+1 is the next step.
 - `limited {label, used, max}`: a request under a `stop_before` allowance went through (e.g. the
   one allowed AI question). The next one is stopped with a STOP note.
+
+## 8. Expectations: what the persona thought a control would do
+
+Before each click, double-click, drag, typed text and key press, a persona states `expect`
+(`outcome`, and `confidence`: `sure`, `guess` or `cannot_tell`). The harness logs it before the
+action runs, so it cannot be hindsight. On its next call the persona gives `expectation_met`
+(`yes`, `partly`, `no`). `node <plugin root>/driver/expectations.mjs <run folder>` pairs the two
+with the harness's `visual_change` and gives each row one `pattern`:
+
+| pattern | rule | what it says |
+|---|---|---|
+| `dead_control` | `visual_change: none` and the persona did not say `yes` | It looked like something to press, and nothing on screen answered. Harness proof. |
+| `control_unpredictable` | `confidence: cannot_tell` | The persona could not tell what the control was for and pressed it to find out. |
+| `unexpected_result` | the screen changed, `expectation_met: no` | The control did something other than what its look or label promised. |
+| `partly_expected` | `expectation_met: partly` | Close to the expectation; read `after` for the difference. |
+| `guess_confirmed` | `confidence: guess`, `expectation_met: yes` | It worked, but the persona was not sure beforehand. |
+| `as_expected` | `confidence: sure`, `expectation_met: yes` | Clear and correct. |
+| `unjudged` | no verdict was given | The session ended, or was cut off, right after the action. |
+
+`expectations: "off"` or `"unknown"` for a persona means its session did not ask for expectations:
+say so under "Run facts" and judge that session by §1–§2 alone.
+
+Turning rows into findings:
+
+- Group rows across personas by the control they aim at. `target` is free text, so match by the
+  screenshot and the place on screen, not by the wording.
+- `dead_control` is a `ux` finding at `signal` confidence from one persona (the harness backs it),
+  unless the screenshot shows the click missed the control (`agent_error`) or `changed_while_idle`
+  on the next step shows a slow response (§7).
+- `unexpected_result`, `partly_expected` and `control_unpredictable` rest on the persona's word
+  alone: `watch` from one persona, `signal` when two or more personas hit the same control. Open
+  the screenshot first. An expectation no real person with that card would hold is `agent_error`.
+- `guess_confirmed` is never a finding by itself. Many guesses on one control across personas are
+  worth one `cosmetic` finding about its label or icon.
+- A persona with `tech_literacy` or `domain_knowledge` above its card answers `sure` too often.
+  When a low-literacy persona is `sure` about an unlabelled icon, note it in the honesty audit (§1)
+  and do not count that row as evidence that the control is clear.
+- Set the finding's `expectation` field to the pattern it rests on (`partly_expected` counts as
+  `unexpected_result`). Quote `expect` and `after` in `what_happened`.
+
+**The report table** ("What people expected") has one row per control with at least one
+`dead_control`, `unexpected_result`, `partly_expected` or `control_unpredictable` row, ordered by
+the number of personas, then by severity:
+
+| Control | Where | Expected | What happened | Personas | Finding |
+|---|---|---|---|---|---|
+| the grey "Export" tile | Beat tab | "a file downloads" (guess) | nothing on screen changed | 2 of 4 | F-07 |
+
+Under the table give one line of totals for the run: how many expectations were recorded, and how
+many were `sure`, `guess` and `cannot_tell`. Then one line naming the controls where every persona
+was `sure` and right, as what already works. Do not turn the totals into a score.

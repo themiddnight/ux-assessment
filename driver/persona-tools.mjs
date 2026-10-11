@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACTION_TYPES, EVENTS, OUTCOMES } from './session.mjs';
+import { ACTION_TYPES, CONFIDENCE, EVENTS, MET, OUTCOMES } from './session.mjs';
 
 const text = (value, isError = false) => ({ content: [{ type: 'text', text: value }], ...(isError ? { isError: true } : {}) });
 const safe = (fn) => async (args) => {
@@ -28,6 +28,11 @@ export function registerPersonaTools(server, session, { waitCap = 10 } = {}) {
       reaction: z.string().describe('REACTION: what you think or feel about it, in character, thinking aloud.'),
       event: z.enum(EVENTS).describe('Frustration event caused by what you just saw, or "none".'),
       frustration_delta: z.number().describe('Frustration points this observation adds (0 if none).'),
+      expectation_met: z.enum(MET).optional().describe('Only when your last action had an "expect": did the screen do what you expected? yes, partly or no. Say what was different in "reaction".'),
+      expect: z.object({
+        outcome: z.string().describe('What you think will happen when you do this action, in your own words. If you cannot tell, say so.'),
+        confidence: z.enum(CONFIDENCE).describe('sure: you can tell at a glance what this is for. guess: you think so but are not certain. cannot_tell: you do not know what it does and are trying it to find out.'),
+      }).optional().describe('Before a click, double_click, drag, type or press_key: your expectation, decided before you see the result.'),
       action: z.object({
         type: z.enum(ACTION_TYPES), target: z.string().optional().describe('What you are aiming at, in your own words.'),
         x: z.number().optional(), y: z.number().optional(), to_x: z.number().optional(), to_y: z.number().optional(),
@@ -51,6 +56,7 @@ export function registerPersonaTools(server, session, { waitCap = 10 } = {}) {
     description: 'Call when you are done: goal reached, you give up, you ran out of steps or patience, or you reached a step you were told to stop before. Records your exit interview. Required: your session counts only once this answers "Exit interview recorded", so call it before you write your final reply; if it answers GOAL_CHECK, follow that and call it again.',
     inputSchema: {
       session: z.string(), outcome: z.enum(OUTCOMES),
+      expectation_met: z.enum(MET).optional().describe('Only when your last action had an "expect": did the screen do what you expected?'),
       final_observation: z.string().describe('FACT: what the screen shows now, at the end (your evidence for the outcome).'),
       exit_interview: z.object({
         what_it_is_for: z.string().describe('In your own words: what is this app for?'),
@@ -59,8 +65,8 @@ export function registerPersonaTools(server, session, { waitCap = 10 } = {}) {
         most_confusing: z.string().describe('What confused you most.'),
       }),
     },
-  }, safe(async ({ session: id, outcome, final_observation, exit_interview }) =>
-    text(session(id).end({ outcome, final_observation, exit_interview }))));
+  }, safe(async ({ session: id, outcome, final_observation, exit_interview, expectation_met }) =>
+    text(session(id).end({ outcome, final_observation, exit_interview, expectation_met }))));
 
   let cap = waitCap;
   return {

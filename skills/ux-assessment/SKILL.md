@@ -205,7 +205,8 @@ Otherwise take the personas in batches of `max_parallel` (default 3). For each b
 
 1. For each persona, `harness_start`: `session: <persona id>`, `dir: <run folder>/<persona id>`,
    `url`, `viewport` (card `device.viewport`), `cap`, `patience_budget`, `fs`, `files`,
-   `permissions`, `clock`, `safety`, `goal` (the briefing's "What you want" line, verbatim: the
+   `permissions`, `clock`, `safety`, `expectations: true` (the persona must state what it expects
+   before it acts; only persona sessions get this), `goal` (the briefing's "What you want" line, verbatim: the
    plan's scenario, not the card's `goal` — the harness quotes it back in `GOAL_CHECK`), and `storage_state` for returning personas.
 2. Issue all the batch's persona Agent calls **in one message** (`subagent_type:
    "ux-assessment:persona"`, prompt = the briefing only, `run_in_background: false`). Each has its

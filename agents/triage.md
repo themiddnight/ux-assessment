@@ -17,7 +17,8 @@ the run was unattended, and a **suppress** list: finding titles the developer la
    large log, use the Grep tool to find the lines, then Read with `offset`/`limit`, not the whole
    file), and open the screenshots of the friction points you keep (not every screenshot: a session
    has up to 30).
-2. Cross-check every claim you keep against the harness signals before it can be `ux`.
+2. Cross-check every claim you keep against the harness signals before it can be `ux`. Run
+   `node <plugin root>/driver/expectations.mjs <run folder>` once and use its rows as rules §8 says.
 3. Classify, dedupe, rank, and give ids by the ledger (rules §3: reuse the id of the same root
    cause). Write a `check` for every new `ux` finding (rules §4). Look up code pointers in the
    project source (search visible text).

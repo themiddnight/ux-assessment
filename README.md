@@ -228,6 +228,7 @@ in-app timers.
 | `agents/verifier.md` | Rechecks one earlier finding in a browser and returns a verdict (verify-only mode) |
 | `driver/png-diff.mjs` | `node driver/png-diff.mjs a.png b.png` — pixel diff of two screenshots with the harness's thresholds, for triage |
 | `driver/probe.mjs` | `url`, `now`, `fetch` and `deps` for the skills and recon, in place of the curl and date commands (the same on every OS) |
+| `driver/expectations.mjs` | `node driver/expectations.mjs <run folder>` — what each persona expected before an action against what happened, one pattern per expectation, for triage (SPEC D34) |
 | `driver/models.mjs` | The model per role (SPEC D30): defaults, `.ux-assessment/config.yaml` overrides, `show <project>` |
 | `driver/usage.mjs`, `hooks/hooks.json` | Token accounting (SPEC D31): the Claude Code hook, `report <run folder>`, `estimate`; coefficients in `knowledge/cost.md` |
 | `scripts/install.mjs` | The installer: driver dependencies, the Claude Code plugin, the Codex skill link |

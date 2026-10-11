@@ -174,7 +174,7 @@ export async function runIsolated({ role, prompt, projectRoot, session: sessionO
   let session, bridge;
   try {
     plant?.(temp);
-    session = await Session.start({ ...sessionOpts, platform, homedir, warn });
+    session = await Session.start({ ...sessionOpts, expectations: role === 'persona', platform, homedir, warn });
     bridge = await startPersonaBridge(session, { role });
     const profile = osSandbox ? sandboxProfile({ projectRoot, bridgePort: bridge.port, executables: [codex, ...companions] }) : null;
     if (profile) privateWrite(path.join(temp, 'sandbox.sb'), profile);

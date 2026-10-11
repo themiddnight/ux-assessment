@@ -19,6 +19,10 @@ export const VIEWPORTS = {
 };
 export const ACTION_TYPES = ['look', 'click', 'double_click', 'drag', 'type', 'press_key', 'scroll', 'wait', 'reload', 'back'];
 export const EVENTS = ['none', 'no_response', 'error_shown', 'went_back', 'not_found', 'asked_twice', 'jargon'];
+// What a persona says before an action that should do something: how well it could tell what the control is for.
+export const CONFIDENCE = ['sure', 'guess', 'cannot_tell'];
+export const EXPECTING_ACTIONS = ['click', 'double_click', 'drag', 'type', 'press_key'];
+export const MET = ['yes', 'partly', 'no'];
 export const OUTCOMES = ['goal_achieved', 'gave_up', 'step_cap', 'patience_exhausted', 'stop_before'];
 
 const SETTLE_MS = 400;
@@ -97,7 +101,7 @@ export class Session {
 
   constructor({ id, dir, url, viewport = 'desktop', cap = 30, patienceBudget = null, fsMode = 'shim',
     autoplay = 'gesture', headed = false, profileDir, safety = {}, chromiumArgs = [], files = null, permissions = 'prompt', storageState = null,
-    clock = 'real', goal = null, waitWallCapMs = WALL_CAP_MS, platform = process.platform, homedir = os.homedir(), warn = stderrLine }) {
+    clock = 'real', goal = null, expectations = false, waitWallCapMs = WALL_CAP_MS, platform = process.platform, homedir = os.homedir(), warn = stderrLine }) {
     if (!id || !dir || !url) throw new Error('Session needs id, dir and url');
     warnOutsideProfile({ root: dir, platform, homedir, warn }); // D28: file modes are no-ops on Windows
     this.id = id;
@@ -106,6 +110,8 @@ export class Session {
     this.device = typeof viewport === 'string' ? VIEWPORTS[viewport] : { viewport };
     if (!this.device?.viewport) throw new Error(`unknown viewport ${JSON.stringify(viewport)}`);
     this.cap = cap;
+    this.expectations = expectations === true; // personas: state an expectation before acting, a verdict after
+    this.pendingExpectation = null; // the step whose expectation has no verdict yet
     this.patienceBudget = patienceBudget;
     this.fsMode = fsMode;
     this.autoplay = autoplay;
@@ -224,7 +230,7 @@ export class Session {
       await this.page.waitForTimeout(800); // real time: Playwright's own timer, not the page's
       this.lastImg = await this.#rawShot();
     } finally { await this.pageClock?.stopPacer(); }
-    this.#signal('setup', { url: this.url, viewport: this.viewport, cap: this.cap, patience_budget: this.patienceBudget, fs: this.fsMode,
+    this.#signal('setup', { url: this.url, viewport: this.viewport, cap: this.cap, expectations: this.expectations, patience_budget: this.patienceBudget, fs: this.fsMode,
       safety: { external_navigation: this.safety.external_navigation, allowed_hosts: [...this.allowedHosts], stop_before: this.safety.stop_before.map((x) => x.label), block: this.safety.block.length },
       files: this.files, permissions: this.permissions, clock: this.clockMode });
   }
@@ -918,9 +924,25 @@ export class Session {
    */
   act(input) { return this.#serial(() => this.#act(input)); }
 
-  async #act({ observation = '', reaction = '', event = 'none', frustration_delta = 0, action } = {}) {
+  /** Validate the expectation fields of one act call; returns an error string or null. */
+  #invalidExpectation(action, expect, met) {
+    if (expect !== undefined && (typeof expect?.outcome !== 'string' || !expect.outcome.trim() || !CONFIDENCE.includes(expect.confidence))) {
+      return `expect needs outcome (what you think will happen) and confidence, one of ${CONFIDENCE.join(', ')}`;
+    }
+    if (met !== undefined && !MET.includes(met)) return `expectation_met must be one of ${MET.join(', ')}`;
+    if (!this.expectations) return null;
+    if (EXPECTING_ACTIONS.includes(action.type) && !expect) {
+      return `${action.type} needs expect: what you think will happen, and confidence (sure, guess or cannot_tell), written before you see the result`;
+    }
+    if (this.pendingExpectation != null && met === undefined) {
+      return `expectation_met is missing: say whether step ${this.pendingExpectation} did what you expected (yes, partly or no)`;
+    }
+    return null;
+  }
+
+  async #act({ observation = '', reaction = '', event = 'none', frustration_delta = 0, action, expect, expectation_met } = {}) {
     if (this.stopped) return { ok: false, text: 'SESSION_STOPPED: this browser session is closed.' };
-    const fields = { observation, reaction, action, event, frustration_delta };
+    const fields = { observation, reaction, action, event, frustration_delta, ...(expect ? { expect } : {}) };
     if (this.ended) return { ok: false, refused: true, text: 'SESSION_ENDED: you already finished this session. Stop now.' };
     if (this.over) {
       // The cap and patience refusals log themselves when they first happen; the browser quits on its own.
@@ -930,11 +952,16 @@ export class Session {
     }
 
     const bad = this.#invalid(action) ?? (EVENTS.includes(event) ? null : `unknown event ${JSON.stringify(event)}; use one of ${EVENTS.join(', ')}`)
-      ?? (Number.isInteger(frustration_delta) && frustration_delta >= 0 ? null : 'frustration_delta must be a non-negative integer');
+      ?? (Number.isInteger(frustration_delta) && frustration_delta >= 0 ? null : 'frustration_delta must be a non-negative integer')
+      ?? this.#invalidExpectation(action, expect, expectation_met);
     if (bad) {
       this.#log({ invalid: bad, ...fields });
       return { ok: false, text: `INVALID_ACTION: ${bad}. Nothing happened and no step was used. Try again.` };
     }
+    // The verdict on the earlier step is logged with this call, whether it becomes a step or a refusal.
+    const judged = this.pendingExpectation;
+    if (judged != null && expectation_met) fields.expectation_met = { step: judged, met: expectation_met };
+    this.pendingExpectation = null;
 
     this.frustration += frustration_delta;
     const free = action.type === 'look' && this.steps === 0 && !this.freeLookUsed;
@@ -986,6 +1013,8 @@ export class Session {
       } catch (e) {
         if (/Unknown key/.test(e.message)) {
           this.steps--;
+          this.pendingExpectation = judged; // the corrected call gives the verdict again
+          delete fields.expectation_met;
           this.#log({ invalid: clip(e.message), ...fields });
           return { ok: false, text: `INVALID_ACTION: ${clip(e.message.split('\n')[0], 120)}. No step was used.` };
         }
@@ -1013,6 +1042,7 @@ export class Session {
       ...(this.lastWait ? { waited_ms: this.lastWait.waitedMs, wait_stop: this.lastWait.stop } : {}),
       ...(actionError ? { action_error: actionError } : {}),
     });
+    if (this.expectations && expect && !free) this.pendingExpectation = this.steps;
     return { ok: true, text: this.#statusText(actionError, !shot), png: shot?.png ?? null, screenshotPath: shot?.file ?? null };
   }
 
@@ -1069,7 +1099,7 @@ export class Session {
    * The first goal_achieved only asks the persona to re-read its goal (personas declared success on
    * a partial goal, the timer app 2026-09-28); the next end() call records whatever outcome it gives.
    */
-  end({ outcome, final_observation = '', exit_interview }) {
+  end({ outcome, final_observation = '', exit_interview, expectation_met }) {
     if (this.ended) throw new Error('session already ended');
     if (outcome === 'goal_achieved' && !this.goalChecked) {
       this.goalChecked = true;
@@ -1081,7 +1111,9 @@ export class Session {
     }
     this.ended = true;
     this.outcome = outcome;
-    this.#log({ end: { outcome, final_observation, exit_interview, steps: this.steps, frustration: this.frustration, over: this.over, final_screenshot: this.shots ? `screenshots/s${String(this.shots).padStart(2, '0')}.png` : null } });
+    const verdict = this.pendingExpectation != null && MET.includes(expectation_met) ? { expectation_met: { step: this.pendingExpectation, met: expectation_met } } : {};
+    this.pendingExpectation = null;
+    this.#log({ end: { outcome, final_observation, exit_interview, ...verdict, steps: this.steps, frustration: this.frustration, over: this.over, final_screenshot: this.shots ? `screenshots/s${String(this.shots).padStart(2, '0')}.png` : null } });
     return 'Exit interview recorded. The session is over; reply with a short summary of your journey.';
   }
 
@@ -1093,7 +1125,7 @@ export class Session {
     return this.#serial(async () => ({
       session: this.id, steps: this.steps, cap: this.cap, frustration: this.frustration,
       patience_budget: this.patienceBudget, over: this.over, ended: this.ended, outcome: this.outcome ?? null,
-      stop_before: this.stopBeforeReached, clock: this.clockMode, page_time_ms: this.#pageTime(),
+      stop_before: this.stopBeforeReached, clock: this.clockMode, expectations: this.expectations, page_time_ms: this.#pageTime(),
       audio: this.stopped ? null : await this.#audio(), // current document only
       audio_session: this.#audioSession(), // whole session, across reloads
       opfs: this.stopped ? null : await this.#evalNoGesture('window.__uxOpfsFiles?.() ?? null').catch(() => null),

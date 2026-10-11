@@ -61,22 +61,23 @@ server.registerTool('harness_start', {
     files: z.string().optional().describe('Absolute path of a folder whose files the <input type=file> stand-in offers.'),
     permissions: z.enum(['prompt', 'grant', 'deny']).optional().describe('Camera/microphone/MIDI/notifications/location: prompt (default, a visible Allow/Block prompt), grant, deny.'),
     storage_state: z.string().optional().describe('Absolute path of a state file saved by harness_save_state: start as a returning user.'),
+    expectations: z.boolean().optional().describe('true for a persona session: act then requires "expect" before a click, double_click, drag, type or press_key, and "expectation_met" on the call after it. Leave out for a setup login or a verifier.'),
     goal: z.string().optional().describe('The persona\'s goal, verbatim from its briefing\'s "What you want" line. GOAL_CHECK quotes it back before goal_achieved counts; nothing else sees it.'),
     clock: z.enum(CLOCK_MODES).optional().describe('Page time: real (default) or controlled (the harness owns timers: paused while the persona thinks, wait up to 600 s that ends when the screen changes). From the charter; the same for every session of a run.'),
   },
-}, safe(async ({ session, dir, url, viewport, cap, patience_budget, fs, autoplay, headed, safety, files, permissions, storage_state, clock, goal }) => {
+}, safe(async ({ session, dir, url, viewport, cap, patience_budget, fs, autoplay, headed, safety, files, permissions, storage_state, clock, goal, expectations }) => {
   if (sessions.has(session)) throw new Error(`SESSION_EXISTS: "${session}" is already open; stop it first.`);
   sessions.set(session, null); // reserve the id while Chromium starts (parallel starts)
   let s;
   try {
     s = await Session.start({ id: session, dir, url, viewport, cap, patienceBudget: patience_budget ?? null, fsMode: fs, autoplay, headed,
-      safety, files, permissions, storageState: storage_state, clock, goal });
+      safety, files, permissions, storageState: storage_state, clock, goal, expectations });
   } catch (e) { sessions.delete(session); throw e; }
   sessions.set(session, s);
   personaTools.setWaitCap(s.waitCap);
   return json({ session, dir: s.dir, url, viewport: s.viewport, cap: s.cap, patience_budget: s.patienceBudget, fs: s.fsMode,
     safety: { external_navigation: s.safety.external_navigation, allowed_hosts: [...s.allowedHosts] }, files: s.files, permissions: s.permissions,
-    storage_state: s.storageState, clock: s.clockMode });
+    storage_state: s.storageState, clock: s.clockMode, expectations: s.expectations });
 }));
 
 server.registerTool('harness_save_state', {

@@ -71,6 +71,7 @@ the "ship → feedback → fix → re-ship" loop.
 | D31 | Tokens, not dollars | Estimates and reports are in tokens **per model and per role**, split into input, cached input and output. A dollar "API-equivalent" line is secondary. The docs promise no share of subscription limits. Amends D12. |
 | D32 | License and distribution | MIT, copyright "Pathompong Thitithan". `"license": "MIT"` in both manifests. A Claude marketplace file at `.claude-plugin/marketplace.json`. CONTRIBUTING.md and SECURITY.md. |
 | D33 | Private material | The public repository starts from **one fresh commit** made from a cleaned export, under a GitHub noreply email. `work/`, `spike/` and `docs/superpowers/plans/` are not published. The private app names become neutral labels. The private repository keeps the full history. |
+| D34 | Expectations | Before a `click`, `double_click`, `drag`, `type` or `press_key`, a persona states `expect`: `outcome` (what it thinks will happen) and `confidence` (`sure`, `guess`, `cannot_tell`: could it tell what the control is for). The harness logs it before the action runs, so it cannot be hindsight, and refuses the action without it. The next call gives `expectation_met` (`yes`, `partly`, `no`). `harness_start` turns this on with `expectations: true`; the Codex runner turns it on for the `persona` role. A verifier and a setup login never state expectations. `driver/expectations.mjs` pairs each expectation with the harness result into one pattern (`knowledge/triage.md` §8); the report gets a "What people expected" table. The words `expect`, `confidence` and `control_unpredictable` are those of the perception layer, so app runs and design runs compare. Limits: the expectation is the model playing the persona, not a person, and a model knows UI conventions better than a low-literacy card; one persona's word is `watch`, and only `dead_control` has harness proof. |
 
 ---
 
@@ -183,7 +184,8 @@ Each step:
 1. **Observe** (screenshot or a11y tree per persona)
 2. **Think aloud** in character
 3. **Act** — exactly one action
-4. **Log** to file: `observation` (FACT), `reaction` (REACTION), `action`, `frustration_delta`, `event`
+4. **Log** to file: `observation` (FACT), `reaction` (REACTION), `action`, `frustration_delta`, `event`,
+   and for an action that should do something `expect` (D34); the next step adds `expectation_met`
 
 Frustration events (defined, not vibes): no visible response after action · error shown · had to go
 back · could not find target after N looks · asked for the same info twice · unexplained jargon.
@@ -201,6 +203,7 @@ Step log entry:
 ```json
 {"step": 7, "observation": "Grid of squares, no labels, a play icon top-left",
  "reaction": "No idea what the squares do", "action": {"type": "click", "target": "top-left square"},
+ "expect": {"outcome": "it lights up or plays a sound", "confidence": "guess"},
  "event": "no_response", "frustration_delta": 1, "screenshot": "s07.png"}
 ```
 
