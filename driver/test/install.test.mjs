@@ -363,6 +363,22 @@ test('dependencies: npm ci, then Playwright Chromium through node; win32 runs np
   }
 });
 
+test('a driver/node_modules left by the old layout is removed, so it cannot shadow the root packages', async () => {
+  const b = box();
+  try {
+    const old = path.join(b.base, 'driver', 'node_modules', 'yaml');
+    fs.mkdirSync(old, { recursive: true });
+    const out = [];
+    const { run } = recorder();
+    const code = await main({ argv: ['--deps-only'], root: b.base, run, out: (l) => out.push(l), err: () => {} });
+    assert.equal(code, 0);
+    assert.ok(!fs.existsSync(path.join(b.base, 'driver', 'node_modules')));
+    assert.match(out[0], /^Removing .+node_modules: the packages are now in .+node_modules\.$/);
+  } finally {
+    b.cleanup();
+  }
+});
+
 test('--chromium-only: Playwright Chromium alone, with no npm ci and no harness step', async () => {
   const b = box();
   try {

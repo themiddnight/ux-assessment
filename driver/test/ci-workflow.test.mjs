@@ -18,6 +18,7 @@ test('ci.yml: macOS, Windows and Ubuntu, Node 20 (+22 on Ubuntu), driver tests, 
   const runs = job.steps.map((s) => s.run ?? '').join('\n');
   assert.match(runs, /npm ci/);
   assert.match(runs, /npm test/);
+  assert.deepEqual(job.steps.filter((s) => s['working-directory']), [], 'package.json is at the root: no step changes directory');
   assert.match(runs, /node driver\/codex-runner\.mjs self-check --offline/);
   const names = job.steps.map((s) => s.name ?? '');
   const installer = job.steps[names.findIndex((n) => n.startsWith('Installer'))];
@@ -52,6 +53,7 @@ test('codex-canary.yml: manual only, macOS, Windows and Ubuntu, the key reaches 
   assert.equal(job['timeout-minutes'], 30);
   const runs = job.steps.map((s) => s.run ?? '').join('\n');
   assert.match(runs, /npm ci/);
+  assert.deepEqual(job.steps.filter((s) => s['working-directory']), []);
   assert.match(runs, /playwright\/cli\.js install/);
   assert.match(runs, /npm install -g @openai\/codex@latest/);
   assert.match(runs, /find-codex-bin\.mjs/);

@@ -17,13 +17,10 @@ const USAGE = 'usage: node probe.mjs url <url> | now | fetch <url> [--max-bytes 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CHROMIUM = 'playwright chromium';
 
+/** Throws when the playwright package is there but cannot be loaded (an interrupted `npm ci`). */
 async function chromiumInstalled(root) {
-  try {
-    const { chromium } = createRequire(path.join(root, 'package.json'))('playwright');
-    return fs.existsSync(chromium.executablePath());
-  } catch {
-    return false;
-  }
+  const { chromium } = createRequire(path.join(root, 'package.json'))('playwright');
+  return fs.existsSync(chromium.executablePath());
 }
 
 /** The driver's npm packages, then Playwright's Chromium, which no install but `install.mjs` downloads. */
@@ -31,7 +28,12 @@ export async function missingDeps({ root = ROOT, chromium = chromiumInstalled } 
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const missing = Object.keys(pkg.dependencies ?? {})
     .filter((name) => !fs.existsSync(path.join(root, 'node_modules', name, 'package.json')));
-  if (!missing.includes('playwright') && !(await chromium(root))) missing.push(CHROMIUM);
+  if (missing.includes('playwright')) return missing;
+  try {
+    if (!(await chromium(root))) missing.push(CHROMIUM);
+  } catch {
+    missing.push('playwright'); // --chromium-only could not run it either
+  }
   return missing;
 }
 

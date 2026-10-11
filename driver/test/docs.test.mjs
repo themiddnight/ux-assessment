@@ -135,6 +135,7 @@ test('CONTRIBUTING.md: the sections, the commands CI runs, the isolation invaria
     'npx -y @anthropic-ai/claude-code plugin validate .claude-plugin/plugin.json']) {
     assert.ok(code.includes(cmd), `CONTRIBUTING.md shows ${cmd}`);
   }
+  assert.ok(!code.includes('cd driver && npm'), 'npm runs at the repository root, where package.json is');
   const ci = read('.github/workflows/ci.yml');
   assert.match(ci, /node driver\/codex-runner\.mjs self-check --offline/); // the doc and CI run the same gate
   assert.match(text, /`act` and `end_session`/);

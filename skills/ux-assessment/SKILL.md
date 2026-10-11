@@ -17,8 +17,9 @@ Then run `node "$PLUGIN/driver/probe.mjs" deps`. If it exits 1, read the `run:` 
 
 - **The command ends in `--chromium-only`:** only the test browser is missing, which is normal on
   the first run after a marketplace install or a plugin update. Tell the user in one sentence that
-  you are downloading the test browser once, run that command yourself, then run the check again
-  and continue when it prints `ok`. No restart is needed.
+  you are downloading the test browser once, run that command yourself, once, then run the check
+  again and continue when it prints `ok`. No restart is needed. If the command fails, or the check
+  still does not print `ok`, stop and show the user both outputs; do not try again.
 - **The command ends in `--deps-only`:** the driver packages are missing. Claude Code installs
   them with the plugin, so either that install failed or this is a checkout that was never set up.
   Stop: show the user the output and tell them to run its command and restart Claude Code or Codex.

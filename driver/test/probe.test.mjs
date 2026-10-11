@@ -115,6 +115,9 @@ test('deps: names missing packages, then a missing Chromium, else nothing', asyn
   dir = fakeRoot(t, ['yaml', 'playwright']);
   assert.deepEqual(await missingDeps({ root: dir, chromium: async () => false }), ['playwright chromium']);
   assert.deepEqual(await missingDeps({ root: dir, chromium: async () => true }), []);
+  // A playwright folder that cannot be loaded is a missing package, not a missing browser.
+  assert.deepEqual(await missingDeps({ root: dir, chromium: async () => { throw new Error('Cannot find module playwright-core'); } }), ['playwright']);
+  assert.deepEqual(await missingDeps({ root: dir }), ['playwright']); // the real loader on the fake, empty package
 });
 
 test('deps CLI: ok and exit 0; exit 1 with --chromium-only for the browser alone, else --deps-only and a restart', async () => {
@@ -141,4 +144,6 @@ test('the shared skill preamble runs the dependency check before the Codex redir
   assert.ok(check > 0 && check < skill.indexOf('**Codex entry:**'));
   assert.match(skill, /--deps-only/);
   assert.match(skill, /--chromium-only/);
+  assert.match(skill, /run that command yourself, once/);
+  assert.match(skill, /If the command fails, or the check\s+still does not print `ok`, stop/);
 });

@@ -118,6 +118,12 @@ export function installChromium({ root, platform, run, execPath = process.execPa
 }
 
 export function installDeps({ root, platform, run, execPath = process.execPath, out }) {
+  // Up to 0.3.1 the packages were in driver/node_modules. Node finds that folder first, so a leftover one would keep the old versions in use.
+  const old = path.join(root, 'driver', 'node_modules');
+  if (fs.existsSync(old)) {
+    out(`Removing ${old}: the packages are now in ${path.join(root, 'node_modules')}.`);
+    fs.rmSync(old, { recursive: true, force: true });
+  }
   out(`Installing the driver dependencies in ${root} (npm ci, then Playwright Chromium)…`);
   // win32: npm is npm.cmd, which Node spawns only through a shell. The string is fixed; no user input reaches it.
   const npm = platform === 'win32'

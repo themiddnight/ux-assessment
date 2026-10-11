@@ -75,15 +75,15 @@ Requirements: Node.js 20+ with npm, and Claude Code, Codex, or both, signed in.
 /plugin install ux-assessment@ux-assessment
 ```
 
-Claude Code installs the driver's npm packages together with the plugin, and again with each
-update. The first time you run the skill, and the first time after an update that needs a newer
+Claude Code installs the driver's npm packages together with the plugin. Its documentation says it
+does the same for each update. The first time you run the skill, and the first time after an update that needs a newer
 browser, it downloads Playwright's Chromium (`node "<plugin dir>/scripts/install.mjs"
 --chromium-only`) and then continues. The skill is `ux-assessment:ux-assessment`.
 
 If the package install did not finish (it has a 60-second limit and needs npm on your PATH), the
 skill stops and prints the command that repairs it, `node "<plugin dir>/scripts/install.mjs"
 --deps-only`; run it, then restart Claude Code. The automatic package install was checked on
-Claude Code 2.1.296; a version without it asks for that command after each install or update.
+a fresh install with Claude Code 2.1.296; a version without it asks for that command after each install or update.
 
 ### From a clone (Claude Code and Codex)
 
