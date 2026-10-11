@@ -163,3 +163,15 @@ test('the npm 0.158 fixture passes too (the build CI installs)', () => {
   const verdict = evaluateGate(parseFeatures(listAfter(text, deny)), { version: '0.158.0' });
   assert.deepEqual(verdict.problems, []);
 });
+
+test('the 0.162.1 list passes: browser_annotation_api is disabled, and its four other new features are allowed', () => {
+  const text = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'codex-features-0.162.txt'), 'utf8');
+  const deny = denyPresent(parseFeatures(text));
+  assert.ok(deny.includes('browser_annotation_api'));
+  const verdict = evaluateGate(parseFeatures(listAfter(text, deny)), { version: '0.162.1' });
+  assert.deepEqual(verdict.problems, []);
+  for (const name of ['api_key_model_discovery', 'in_app_voice', 'instant_interrupt', 'ultrafast_mode']) assert.ok(verdict.enabled.includes(name), name);
+  // Left on, the browser feature refuses the run: the gate, not the list, is what keeps it out.
+  const leftOn = evaluateGate(parseFeatures(listAfter(text, deny.filter((name) => name !== 'browser_annotation_api'))), { version: '0.162.1' });
+  assert.deepEqual(leftOn.problems, ['Codex 0.162.1 keeps browser_annotation_api on after --disable browser_annotation_api']);
+});

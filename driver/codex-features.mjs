@@ -1,5 +1,5 @@
 // Codex feature gate (SPEC D25): disable Codex's own tools, and refuse a run when Codex enables a feature
-// nobody has classified. Classified on codex-cli 0.155.0-alpha.9.2 and npm 0.158.0; confirmed by the canary self-check.
+// nobody has classified. Classified on codex-cli 0.155.0-alpha.9.2, npm 0.158.0 and 0.162.1; confirmed by the canary self-check.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,6 +17,8 @@ export const DENY = Object.freeze([
   'unified_exec_zsh_fork', // removed but still true: a shell variant
   // new in npm 0.158.0 (canary 2026-09-28); `--disable` turns it off
   'daemon_auto_start', // a background daemon; a one-shot `exec` does not need it
+  // new in 0.162.1 (self-check 2026-10-12)
+  'browser_annotation_api', // lets websites open annotation tools in the desktop app's browser; denied with in_app_browser
 ]);
 
 /** May stay on: required, or no capability the model can reach. Each entry says why. */
@@ -49,6 +51,11 @@ export const ALLOW = Object.freeze({
   write_stdin_approval: "approval for writing to an exec session's stdin; the exec tools are disabled",
   // new in npm 0.159.0 (Windows CI 2026-09-29): default on only on Windows (codex-rs/features: cfg!(windows))
   secret_auth_storage: 'where CLI auth is stored when keyring storage is selected; no tool',
+  // new in 0.162.1 (self-check 2026-10-12); the reasons are from the doc comments in codex-rs/features/src/lib.rs
+  api_key_model_discovery: 'fetches the model catalog for API-key sign-in from the model API; no tool',
+  in_app_voice: 'app UI; inert in exec',
+  instant_interrupt: 'ends a response early when new user input arrives; exec sends one prompt, and it adds no tool',
+  ultrafast_mode: 'service speed tier; no tool',
 });
 
 export const REQUIRED = 'code_mode_host';
