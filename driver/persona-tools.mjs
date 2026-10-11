@@ -32,7 +32,7 @@ export function registerPersonaTools(server, session, { waitCap = 10 } = {}) {
       expect: z.object({
         outcome: z.string().describe('What you think will happen when you do this action, in your own words. If you cannot tell, say so.'),
         confidence: z.enum(CONFIDENCE).describe('sure: you can tell at a glance what this is for. guess: you think so but are not certain. cannot_tell: you do not know what it does and are trying it to find out.'),
-      }).optional().describe('Before a click, double_click, drag, type or press_key: your expectation, decided before you see the result.'),
+      }).optional().describe('Personas only, as your instructions say: before a click, double_click, drag, type or press_key, your expectation, decided before you see the result.'),
       action: z.object({
         type: z.enum(ACTION_TYPES), target: z.string().optional().describe('What you are aiming at, in your own words.'),
         x: z.number().optional(), y: z.number().optional(), to_x: z.number().optional(), to_y: z.number().optional(),

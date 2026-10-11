@@ -92,6 +92,53 @@ test('expectations off (a verifier, a setup login): nothing is required, and a g
   } finally { await s.stop(); }
 });
 
+test('a verdict is kept across an Unknown-key retry, a step-cap refusal and GOAL_CHECK', async () => {
+  const dir = tmpDir();
+  const s = await Session.start({ id: 'e5', dir, url: fx.url('basic.html'), cap: 2, expectations: true, goal: 'Count to one' });
+  try {
+    const expect = { outcome: 'the number goes up', confidence: 'sure' };
+    await s.act(step(ADD, { expect }));
+    const unknown = await s.act(step({ type: 'press_key', key: 'NoSuchKey' }, { expect, expectation_met: 'yes' }));
+    assert.match(unknown.text, /^INVALID_ACTION: /);
+    assert.match((await s.act(step({ type: 'look' }))).text, /expectation_met is missing: say whether step 1/, 'the retry must answer for step 1 again');
+    await s.act(step(ADD, { expect, expectation_met: 'yes' }));
+    const capped = await s.act(step(ADD, { expect, expectation_met: 'partly' }));
+    assert.match(capped.text, /^STEP_CAP_REACHED/);
+    await s.act(step({ type: 'look' }, { expectation_met: 'no' })); // already answered: nothing more is logged
+    const log = readLog(dir);
+    assert.deepEqual(log.filter((e) => e.expectation_met).map((e) => [e.step ?? e.refused, e.expectation_met]),
+      [[2, { step: 1, met: 'yes' }], ['STEP_CAP_REACHED', { step: 2, met: 'partly' }]]);
+  } finally { await s.stop(); }
+
+  const dir2 = tmpDir();
+  const s2 = await Session.start({ id: 'e6', dir: dir2, url: fx.url('basic.html'), cap: 4, expectations: true, goal: 'Count to one' });
+  try {
+    await s2.act(step(ADD, { expect: { outcome: 'one', confidence: 'guess' } }));
+    assert.match(s2.end({ outcome: 'goal_achieved', final_observation: '1', exit_interview: interview, expectation_met: 'yes' }), /^GOAL_CHECK/);
+    s2.end({ outcome: 'goal_achieved', final_observation: 'The number shows 1', exit_interview: interview });
+    assert.deepEqual(readLog(dir2).at(-1).end.expectation_met, { step: 1, met: 'yes' });
+  } finally { await s2.stop(); }
+});
+
+test('an action the harness stopped is marked in the log, and is never a dead control', async () => {
+  const dir = tmpDir();
+  const s = await Session.start({ id: 'e7', dir, url: fx.url('safety.html'), cap: 4, expectations: true });
+  try {
+    const r = await s.act(step({ type: 'click', x: 180, y: 118, target: 'Visit partner' }, { expect: { outcome: 'the partner site opens', confidence: 'sure' } }));
+    assert.match(r.text, /STOP: /);
+    s.end({ outcome: 'stop_before', final_observation: 'A STOP note', exit_interview: interview, expectation_met: 'no' });
+    const log = readLog(dir);
+    assert.equal(log.find((e) => e.step === 1).stopped_before.length, 1);
+    assert.deepEqual(pairExpectations(log).map((row) => row.pattern), ['stopped_by_harness']);
+  } finally { await s.stop(); }
+});
+
+test('pairExpectations: a failed action is action_failed, whatever the screen did', () => {
+  const rows = pairExpectations([line(1, { type: 'click', x: 1, y: 2, target: 'Play' },
+    { expect: { outcome: 'music', confidence: 'sure' }, visual_change: 'none', action_error: 'page crashed' })]);
+  assert.deepEqual([rows[0].pattern, rows[0].action_error], ['action_failed', 'page crashed']);
+});
+
 const line = (stepNo, action, extra = {}) => ({ t: stepNo, step: stepNo, observation: 'o', reaction: `r${stepNo}`, action, event: 'none', screenshot: `screenshots/s0${stepNo}.png`, visual_change: 'changed', ...extra });
 
 test('pairExpectations: each expectation meets its verdict and the harness result, and gets one pattern', () => {
@@ -161,7 +208,7 @@ test('the persona instructions, the skill and the triage rules use the harness v
   assert.match(read('skills/ux-assessment/SKILL.md'), /`expectations: true`/);
   const triage = read('knowledge/triage.md');
   assert.match(triage, /driver\/expectations\.mjs/);
-  for (const pattern of ['dead_control', 'unexpected_result', 'partly_expected', 'control_unpredictable', 'guess_confirmed', 'as_expected', 'unjudged']) {
+  for (const pattern of ['stopped_by_harness', 'action_failed', 'dead_control', 'unexpected_result', 'partly_expected', 'control_unpredictable', 'guess_confirmed', 'as_expected', 'unjudged']) {
     assert.ok(triage.includes(`\`${pattern}\``), `knowledge/triage.md explains ${pattern}`);
   }
 });

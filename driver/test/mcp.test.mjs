@@ -83,6 +83,21 @@ test('full persona session over MCP: start, look, act, drag, cap, end, stop', as
   assert.equal(log.at(-1).end.final_screenshot, 'screenshots/s04.png');
 });
 
+test('harness_start expectations: true reaches the session, and act carries expect and expectation_met', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uxs-mcp-'));
+  const started = await call('harness_start', { session: 'exp', dir, url: fx.url('basic.html'), expectations: true });
+  assert.equal(JSON.parse(textOf(started)).expectations, true);
+  const click = { type: 'click', x: 160, y: 120, target: 'Add one' };
+  assert.match(textOf(await call('act', step('exp', click))), /^INVALID_ACTION: click needs expect/);
+  assert.match(textOf(await call('act', { ...step('exp', click), expect: { outcome: 'the number goes up', confidence: 'guess' } })), /^Step 1 of/);
+  assert.match(textOf(await call('act', { ...step('exp', { type: 'look' }), expectation_met: 'yes' })), /^Step 2 of/);
+  await call('harness_stop', { session: 'exp' });
+  const log = fs.readFileSync(path.join(dir, 'log.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(log.at(-1).expectation_met, { step: 1, met: 'yes' });
+  assert.equal(JSON.parse(textOf(await call('harness_start', { session: 'exp2', dir, url: fx.url('basic.html') }))).expectations, false);
+  await call('harness_stop', { session: 'exp2' });
+});
+
 test('unknown or stopped sessions are tool errors, and the server keeps serving', async () => {
   const r = await call('act', step('nope', { type: 'look' }));
   assert.equal(r.isError, true);

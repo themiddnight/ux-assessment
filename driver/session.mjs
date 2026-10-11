@@ -924,6 +924,14 @@ export class Session {
    */
   act(input) { return this.#serial(() => this.#act(input)); }
 
+  /** {expectation_met: {step, met}} for the expectation that waits for a verdict, which it closes; {} when there is none. */
+  #takeVerdict(met) {
+    if (this.pendingExpectation == null || !MET.includes(met)) return {};
+    const verdict = { expectation_met: { step: this.pendingExpectation, met } };
+    this.pendingExpectation = null;
+    return verdict;
+  }
+
   /** Validate the expectation fields of one act call; returns an error string or null. */
   #invalidExpectation(action, expect, met) {
     if (expect !== undefined && (typeof expect?.outcome !== 'string' || !expect.outcome.trim() || !CONFIDENCE.includes(expect.confidence))) {
@@ -948,7 +956,9 @@ export class Session {
       // The cap and patience refusals log themselves when they first happen; the browser quits on its own.
       const first = this.over === 'BROWSER_CLOSED' && !this.browserRefusalLogged;
       if (first) this.browserRefusalLogged = true;
-      return this.#refuse(this.over, fields, first);
+      // A verdict that arrives with a refused call is still the persona's answer: log that line too.
+      const verdict = this.#takeVerdict(expectation_met);
+      return this.#refuse(this.over, { ...fields, ...verdict }, first || 'expectation_met' in verdict);
     }
 
     const bad = this.#invalid(action) ?? (EVENTS.includes(event) ? null : `unknown event ${JSON.stringify(event)}; use one of ${EVENTS.join(', ')}`)
@@ -960,7 +970,7 @@ export class Session {
     }
     // The verdict on the earlier step is logged with this call, whether it becomes a step or a refusal.
     const judged = this.pendingExpectation;
-    if (judged != null && expectation_met) fields.expectation_met = { step: judged, met: expectation_met };
+    Object.assign(fields, this.#takeVerdict(expectation_met));
     this.pendingExpectation = null;
 
     this.frustration += frustration_delta;
@@ -1041,6 +1051,8 @@ export class Session {
       page_time_ms: this.#pageTime(),
       ...(this.lastWait ? { waited_ms: this.lastWait.waitedMs, wait_stop: this.lastWait.stop } : {}),
       ...(actionError ? { action_error: actionError } : {}),
+      // The harness aborted what this action started (a STOP note): the app never got to answer.
+      ...(this.notedStops.size ? { stopped_before: [...this.notedStops] } : {}),
     });
     if (this.expectations && expect && !free) this.pendingExpectation = this.steps;
     return { ok: true, text: this.#statusText(actionError, !shot), png: shot?.png ?? null, screenshotPath: shot?.file ?? null };
@@ -1101,6 +1113,8 @@ export class Session {
    */
   end({ outcome, final_observation = '', exit_interview, expectation_met }) {
     if (this.ended) throw new Error('session already ended');
+    // Taken before GOAL_CHECK: the persona gives the verdict once, on whichever end_session call comes first.
+    this.endVerdict ??= this.#takeVerdict(expectation_met);
     if (outcome === 'goal_achieved' && !this.goalChecked) {
       this.goalChecked = true;
       this.#signal('goal-check', { final_observation });
@@ -1111,9 +1125,7 @@ export class Session {
     }
     this.ended = true;
     this.outcome = outcome;
-    const verdict = this.pendingExpectation != null && MET.includes(expectation_met) ? { expectation_met: { step: this.pendingExpectation, met: expectation_met } } : {};
-    this.pendingExpectation = null;
-    this.#log({ end: { outcome, final_observation, exit_interview, ...verdict, steps: this.steps, frustration: this.frustration, over: this.over, final_screenshot: this.shots ? `screenshots/s${String(this.shots).padStart(2, '0')}.png` : null } });
+    this.#log({ end: { outcome, final_observation, exit_interview, ...this.endVerdict, steps: this.steps, frustration: this.frustration, over: this.over, final_screenshot: this.shots ? `screenshots/s${String(this.shots).padStart(2, '0')}.png` : null } });
     return 'Exit interview recorded. The session is over; reply with a short summary of your journey.';
   }
 

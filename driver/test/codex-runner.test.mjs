@@ -298,6 +298,8 @@ test('a run through a fake Codex: DENY flags, --json, effort, usage, version and
       assert.deepEqual(args.filter((a, i) => args[i - 1] === '--disable').length, 26);
       assert.ok(!args.includes('code_mode_host'));
       assert.match(fs.readFileSync(path.join(dir, 'codex-cli.log'), 'utf8'), /"turn\.completed"/);
+      const setup = fs.readFileSync(path.join(dir, 'signals.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((e) => e.type === 'setup');
+      assert.equal(setup.expectations, true, 'a Codex persona states expectations too');
     } finally {
       fake.cleanup();
       fs.rmSync(projectRoot, { recursive: true, force: true });

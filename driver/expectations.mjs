@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 const CONFIDENCE = ['sure', 'guess', 'cannot_tell']; // session.mjs CONFIDENCE; not imported, so this file loads without the driver's packages
 
-/** One pattern per expectation. The harness result comes first: only `visual_change: none` proves nothing happened. */
-export function patternOf({ confidence, visual_change, met }) {
+/** One pattern per expectation. What the harness saw comes first: only `visual_change: none` proves nothing happened. */
+export function patternOf({ confidence, visual_change, met, stopped_before, action_error }) {
+  if (stopped_before) return 'stopped_by_harness'; // the app never got to answer
+  if (action_error) return 'action_failed'; // the action itself did not run
   if (visual_change === 'none' && met !== 'yes') return 'dead_control';
   if (confidence === 'cannot_tell') return 'control_unpredictable';
   if (met === 'no') return 'unexpected_result';
@@ -31,6 +33,7 @@ export function pairExpectations(entries) {
       rows.set(e.step, {
         step: e.step, action: e.action?.type ?? null, target: e.action?.target ?? null, expect: e.expect.outcome, confidence: e.expect.confidence,
         visual_change: e.visual_change ?? null, screenshot: e.screenshot ?? null, met: null, after: null,
+        ...(e.stopped_before ? { stopped_before: e.stopped_before } : {}), ...(e.action_error ? { action_error: e.action_error } : {}),
       });
     }
   }

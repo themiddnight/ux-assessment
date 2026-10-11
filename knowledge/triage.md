@@ -191,9 +191,11 @@ with the harness's `visual_change` and gives each row one `pattern`:
 
 | pattern | rule | what it says |
 |---|---|---|
-| `dead_control` | `visual_change: none` and the persona did not say `yes` | It looked like something to press, and nothing on screen answered. Harness proof. |
+| `stopped_by_harness` | the step has `stopped_before` | The harness aborted what the action started (a STOP note). Never a finding about the control: see "Stop-before is not a failure" (§2). |
+| `action_failed` | the step has `action_error` | The action itself did not run. Judge it as §2 does (`agent_error`), not as the app's answer. |
+| `dead_control` | `visual_change: none` and the persona did not say `yes` | The persona expected an answer and nothing on screen changed. Harness proof that nothing was shown. |
 | `control_unpredictable` | `confidence: cannot_tell` | The persona could not tell what the control was for and pressed it to find out. |
-| `unexpected_result` | the screen changed, `expectation_met: no` | The control did something other than what its look or label promised. |
+| `unexpected_result` | `expectation_met: no`, and `visual_change` is not `none` (`changed`, `animating_only` or `null`) | The control did something other than what its look or label promised. |
 | `partly_expected` | `expectation_met: partly` | Close to the expectation; read `after` for the difference. |
 | `guess_confirmed` | `confidence: guess`, `expectation_met: yes` | It worked, but the persona was not sure beforehand. |
 | `as_expected` | `confidence: sure`, `expectation_met: yes` | Clear and correct. |
@@ -209,6 +211,10 @@ Turning rows into findings:
 - `dead_control` is a `ux` finding at `signal` confidence from one persona (the harness backs it),
   unless the screenshot shows the click missed the control (`agent_error`) or `changed_while_idle`
   on the next step shows a slow response (§7).
+- A `dead_control` row and a `no_response` event at the same step are one piece of evidence, not
+  two. When the `audio` signals show sound at that step, the finding is the missing visual
+  feedback (§2), not a dead control. For `type` and `press_key`, check the screenshot: a field that
+  shows the typed text only after a blur is not dead.
 - `unexpected_result`, `partly_expected` and `control_unpredictable` rest on the persona's word
   alone: `watch` from one persona, `signal` when two or more personas hit the same control. Open
   the screenshot first. An expectation no real person with that card would hold is `agent_error`.
