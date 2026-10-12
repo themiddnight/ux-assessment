@@ -266,6 +266,63 @@ function loadLedger(project) {
   return readYaml(file);
 }
 
+const BOARD_ORDER = ['needs_you', 'to_fix', 'kept', 'undecided', 'awaiting_check', 'closed'];
+const BOARD_TITLES = { needs_you: 'Needs you', to_fix: 'To fix', kept: 'Kept', undecided: 'Not decided yet', awaiting_check: 'Waiting for a check' };
+const BOARD_NEXT = {
+  needs_you: 'answer the findings under Needs you', to_fix: 'fix the findings under To fix, then verify them',
+  undecided: 'run /ux-assessment:decide for Not decided yet', awaiting_check: 'verify again to confirm those under Waiting for a check',
+};
+const CLOSED_STATUSES = ['fixed', 'not_real', 'suppressed'];
+
+/** The first group whose rule the finding meets; the rule order is not the print order. */
+function boardKey(status, decision) {
+  if (CLOSED_STATUSES.includes(status)) return 'closed';
+  if (status === 'not_seen') return 'awaiting_check';
+  if (status === 'needs_review' || decision?.value === 'ask') return 'needs_you';
+  if (decision?.value === 'fix') return 'to_fix';
+  if (decision?.value === 'keep') return 'kept';
+  return 'undecided';
+}
+
+/** Every group in print order, empty ones too; only `ux` findings, by severity then id. */
+export function boardGroups(ledger) {
+  const groups = BOARD_ORDER.map((key) => ({ key, rows: [] }));
+  const rows = Object.entries(ledger.findings ?? {}).filter(([, e]) => e.kind === 'ux')
+    .sort(([ia, a], [ib, b]) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3) || byId(ia, ib));
+  for (const [id, e] of rows) {
+    groups.find((g) => g.key === boardKey(e.status, e.decision)).rows.push({
+      id, title: e.title_local || e.title, severity: e.severity, status: e.status, decision: e.decision ?? null, last_seen: e.last_seen ?? null,
+    });
+  }
+  return groups;
+}
+
+export const sourceRef = (s) => `${s.path}:${s.line}`;
+
+function decisionCell(d) {
+  if (!d) return 'not decided';
+  const detail = d.value === 'keep' && d.sources?.length ? sourceRef(d.sources[0]) : d.value === 'ask' ? d.options?.[0] : null;
+  return [d.value, d.by, detail].filter(Boolean).join(' · ');
+}
+
+export function boardMarkdown(groups) {
+  const cell = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().replaceAll('|', '\\|');
+  const blocks = [];
+  for (const { key, rows } of groups) {
+    if (!rows.length || key === 'closed') continue;
+    blocks.push([`## ${BOARD_TITLES[key]} (${rows.length})`, '', '| Finding | Severity | Status | Decision | Last seen |', '|---|---|---|---|---|',
+      ...rows.map((r) => `| ${cell(`${r.id} · ${r.title}`)} | ${r.severity ?? ''} | ${STATUS_WORDS[r.status] ?? r.status} | ${cell(decisionCell(r.decision))} | `
+        + `${r.last_seen ? `[${r.last_seen}](runs/${r.last_seen}/report.md)` : ''} |`)].join('\n'));
+  }
+  const closed = groups.find((g) => g.key === 'closed')?.rows ?? [];
+  const counts = CLOSED_STATUSES.map((s) => [closed.filter((r) => r.status === s).length, STATUS_WORDS[s]]).filter(([n]) => n).map(([n, w]) => `${n} ${w}`);
+  if (counts.length) blocks.push(`Closed: ${counts.join(' · ')}`);
+  if (!blocks.length) return 'No findings on the board.\n';
+  const next = groups.filter((g) => g.rows.length && BOARD_NEXT[g.key]).map((g) => BOARD_NEXT[g.key]);
+  blocks.push(`Next: ${next.length ? next.join('; ') : 'nothing to do'}.`);
+  return `${blocks.join('\n\n')}\n`;
+}
+
 function sessionFacts(personaDir, check) {
   const setup = {};
   const signals = personaDir ? path.join(personaDir, 'signals.jsonl') : null;
@@ -344,7 +401,7 @@ export function statusLines(project) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [cmd, project, ...rest] = process.argv.slice(2);
   try {
-    if (!project) throw new Error('usage: ledger.mjs sync|status <project> | ledger.mjs open <project> [--needs-review] | ledger.mjs table <project> --run <folder>');
+    if (!project) throw new Error('usage: ledger.mjs sync|status <project> | ledger.mjs open <project> [--needs-review] | ledger.mjs board <project> [--json] | ledger.mjs table <project> --run <folder>');
     if (cmd === 'sync') {
       const { ledger, warnings } = syncLedger(project);
       for (const w of warnings) process.stderr.write(`ledger: warning: ${w}\n`);
@@ -353,6 +410,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.stdout.write(`${JSON.stringify(openFindings(project, { needsReview: rest.includes('--needs-review') }), null, 2)}\n`);
     } else if (cmd === 'status') {
       process.stdout.write(statusLines(project));
+    } else if (cmd === 'board') {
+      const groups = boardGroups(loadLedger(project));
+      process.stdout.write(rest.includes('--json') ? `${JSON.stringify(groups, null, 2)}\n` : boardMarkdown(groups));
     } else if (cmd === 'table') {
       const i = rest.indexOf('--run');
       if (i < 0 || !rest[i + 1]) throw new Error('table needs --run <folder>');
