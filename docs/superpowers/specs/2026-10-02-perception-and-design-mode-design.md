@@ -1,6 +1,9 @@
 # Perception layer and design mode — design (2026-10-02)
 
-Status: design agreed in a brainstorm on 2026-10-02. Nothing is built.
+Status: design agreed in a brainstorm on 2026-10-02. Design mode was built from the amended design of
+2026-10-12 ([2026-10-12-design-mode-figma-design.md](2026-10-12-design-mode-figma-design.md)), and it has never
+been run on a real Figma file. Section 4 (the instruments in app runs) and section 6 (constrained input)
+are still not built. The decision numbers of section 11 are superseded by D36 to D39 in SPEC.md.
 
 Terms: decisions D1–D33, knowledge isolation, the run loop and the finding record are defined in
 [SPEC.md](../../../SPEC.md). How a persona is instructed is in `agents/persona.md`.
