@@ -109,6 +109,7 @@ The first command in it cannot be undone. The branch protection blocks force pus
 gh repo create themiddnight/ux-assessment --public --source . --remote origin --push --description "Simulated users for your web app: a Claude Code and Codex skill that runs personas in real browsers and triages what they hit."
 gh label create codex-self-check --repo themiddnight/ux-assessment --color 5319e7 --description "A Codex self-check result from Windows or Linux" --force
 gh label create bug --repo themiddnight/ux-assessment --color d73a4a --description "Something is not working" --force
+gh label create design-mode --repo themiddnight/ux-assessment --color 0e8a16 --description "A run of design mode (Figma or PNG folder)" --force
 gh api -X PUT repos/themiddnight/ux-assessment/private-vulnerability-reporting
 gh api -X PUT repos/themiddnight/ux-assessment/branches/main/protection --input - <<'JSON'
 {"required_status_checks": null, "enforce_admins": false, "required_pull_request_reviews": null, "restrictions": null, "allow_force_pushes": false, "allow_deletions": false}
@@ -116,6 +117,8 @@ JSON
 ```
 
 Expected: the repository exists and `main` is pushed; the last command prints the protection settings.
+The `release check --github` of step 6 reads the labels it requires from the issue forms, so a new form
+needs its own `gh label create` line here.
 
 ### Step 6: Wait for the first CI run on `main`, then tag
 
@@ -131,8 +134,9 @@ gh run watch <databaseId from above> --repo themiddnight/ux-assessment --exit-st
 node scripts/release.mjs check --github themiddnight/ux-assessment
 ```
 
-Expected: `completed` and `success`, then `release check: ok` (public, both labels, private vulnerability
-reporting on, `main` protected, the latest CI run on `main` green). `gh run list` exits 0 for a running or a
+Expected: `completed` and `success`, then `release check: ok` (public; every label that an issue form under
+`.github/ISSUE_TEMPLATE/` names, today `bug`, `codex-self-check` and `design-mode`; private vulnerability
+reporting on; `main` protected; the latest CI run on `main` green). `gh run list` exits 0 for a running or a
 red run, so read its output.
 
 Only when the run above is green, tag:

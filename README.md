@@ -29,6 +29,10 @@ It cannot find:
 It tests web apps only, including mobile viewport emulation; native mobile and desktop apps are out
 of scope. The Codex runner accepts only `localhost` and `127.0.0.1` app URLs.
 
+A second mode assesses a Figma file or a folder of PNG exports instead of a running app. It is
+experimental and has never been run on a real Figma file; see
+[Design mode (Figma): experimental](#design-mode-figma-experimental).
+
 The personas are models, not people. It finds what builders tend to overlook, so you can fix it
 before real users see it. It does not replace testing with real users.
 
@@ -43,6 +47,10 @@ before real users see it. It does not replace testing with real users.
 0.155.0-alpha.9.2 on 2026-09-29. If you use Codex on Windows or Linux, please
 [run the self-check](#windows-and-linux-run-the-codex-self-check) and report the result: those
 reports are what move "experimental" to "tested".
+
+Design mode is not in this matrix. It has its own status table in
+[Design mode (Figma): experimental](#design-mode-figma-experimental), and every row of it is
+experimental.
 
 ### Not verified yet
 
@@ -146,6 +154,9 @@ tokens are recorded):
 - **Claude Code:** run `/ux-assessment`, or `/ux-assessment unattended http://localhost:5173` to take
   every recommended answer without asking; the report then opens with those assumptions.
 - **Codex:** ask it to run `ux-assessment` against the running local URL.
+- **Design mode (Claude Code only, experimental):** run `/ux-assessment` and paste a Figma link or the
+  path of a folder of PNG files instead of a URL. See
+  [Design mode (Figma): experimental](#design-mode-figma-experimental).
 
 On a project that already has `.ux-assessment/`, it offers a menu: New run, Label findings, Verify
 fixes, Re-run triage, Start over, Show results, Decide, Settings. There are three modes: Quick,
@@ -246,6 +257,104 @@ reproduced, not_reproduced, unreachable or changed. The finding's status in the 
 (`.ux-assessment/ledger.yaml`) is updated. "Not seen" once is not "fixed": that needs two separate
 clean checks.
 
+### Design mode (Figma): experimental
+
+Design mode assesses a Figma file, or a folder of PNG exports of one, instead of a running app. No
+browser opens. A viewer is an agent that sees one frame, or one flow of frames, as pictures and has
+two tools, `view` and `answer`. The harness measures what it can in code (contrast, target size,
+text load) and judges every click against the frame's layers. The viewers run on the model of the
+persona role.
+
+Design mode has never been run on a real Figma file. Everything in it was built from Figma's documentation and tested against fixtures the author wrote.
+
+The fixtures are not recordings. A passing test there says the code agrees with the fixture, not
+with Figma. The first section of every design report says the same, with the source and the level
+the run reached.
+
+**How to start it.** Run `/ux-assessment` and paste a Figma link (`/design/`, `/file/` or `/proto/`)
+or the path of a folder of PNG files.
+
+- The skill picks the mode from the input and says which one it picked on its first line.
+- The word `design` forces design mode and asks for the link or the folder. The word `app` forces
+  app mode.
+- A Figma link together with an app URL: the skill asks which one to run. Unattended, it stops.
+- A FigJam, Slides or Community link is refused.
+- A page or section of more than 24 frames is not fetched whole. A run looks at 12 frames at most,
+  and every frame is one image download that counts against Figma's image render, so the skill
+  lists the frames, you pick up to 12 with it, and only those images are downloaded.
+- You choose how much to tell the run. `keyed` takes an intent per frame and the right target per
+  goal. `goal` takes goals only. `blind` takes nothing. The more you give, the more the report can
+  say. For a target you name in words or with a Figma link, the skill shows a picture of the frame
+  with that element outlined and asks you to confirm it before it keeps it.
+
+Which source is used: the config key `design.source` forces one. Otherwise a folder of PNGs wins, then
+a Figma token, then the Figma MCP server. If none is available the skill stops and prints how to set
+each up.
+
+**Status per source.** Every row is experimental.
+
+| Source | What it needs | Highest level | Status |
+|---|---|---|---|
+| REST with a token | A Figma token that can open the file | `flows` when the file has prototype links, otherwise `static` | Experimental: never run on a real Figma file |
+| Figma MCP server | The Figma MCP server connected to your Claude Code session | `frames` | Experimental: never run on a real Figma file |
+| Figma MCP server with the read-only script | The same, and your yes before each run (see below) | `flows` when the file has prototype links, otherwise `static` | Experimental: never run on a real Figma file |
+| Folder of PNGs | A folder of PNG files, one frame per file, and no `package.json` in it | `images` | Experimental: never run on a real Figma file |
+
+What each level adds, from the lowest:
+
+- `images`: comprehension questions for each frame.
+- `frames`: the first click against a target you named, and the measured contrast, target size and
+  prominence.
+- `static`: text load, controls that are only an icon, the large-text rule and the placeholder check.
+- `flows`: one viewer per flow, moved from frame to frame by its own clicks along the prototype links.
+
+A level needs nodes, text, font size or links that the source has to give. The run reports the level
+it reached for your file, which can be lower than the table's highest.
+
+**Figma token.** The driver reads it from the environment variable `FIGMA_TOKEN`, or from
+`figma_token` in `.ux-assessment/secrets.local.yaml`. No agent is given it.
+
+**Figma MCP server.** The driver cannot call an MCP server, so the main session calls the Figma
+tools, saves what they return to files, and hands the files to the driver.
+
+- The `use_figma` tool can change a file. The step that uses it is asked for each run, in Guided and
+  Expert mode. Quick mode never asks and never uses it, and unattended runs never use it.
+- That step passes one fixed script from this repository, `driver/figma-read.js`, unchanged. It only
+  reads text, font size and prototype links. A test fails if the script holds a call or an assignment
+  that could change a document. That test reads the script's text; the script has not run on Figma's
+  real tool. Without the step the run stops at the level `frames`, and the report says so.
+- A View or Collab seat gets about 20 MCP tool calls a month (Figma's figure; the exact limit is not
+  confirmed). A run makes 2 to 4. The skill prints the count before the first call.
+- It works on Claude Code only. Figma lets only catalogued clients connect.
+- What `get_metadata` and `use_figma` really return is taken from Figma's documentation only. If the
+  importer cannot read the XML, it stops and says so.
+
+**What it cannot say.**
+
+- A viewer that fails to understand a frame is strong evidence that the frame is unclear. A viewer
+  that understands it is weak evidence that a person will, because a model reads every word and knows
+  common interface patterns.
+- All viewers are one model. When they agree, that is not evidence.
+- It cannot show an overlay, a variant swap, a scroll action or an animation. A prototype link of
+  those kinds ends the flow for that viewer and is listed under "Not tested".
+- It cannot find an empty, loading or error state that the file has no frame for.
+- The prototype is never played in Figma's player. The harness follows the links itself.
+- A hand-drawn arrow between frames is a hint for the order of frames and nothing else.
+- A folder of PNGs has no layers: no measured values, no links and no placeholder check.
+
+**Left out.** Verify and decide do not cover design findings: "Verify fixes" lists none and the
+decide step skips them. Design mode is not offered on Codex. The token estimate does not cover design
+mode yet. `node driver/usage.mjs report <run folder>` lists viewers next to personas once a run is
+recorded.
+
+**How to help.** Run it on a file you can talk about and report what happened with the "Design mode
+report" issue form ([.github/ISSUE_TEMPLATE/design-mode-report.yml](.github/ISSUE_TEMPLATE/design-mode-report.yml)).
+A run that failed is as useful as one that worked. Do not attach a confidential design. See
+[Reporting design mode results](CONTRIBUTING.md#reporting-design-mode-results).
+
+To see what a snapshot holds without an agent, run `node driver/design.mjs frames <snapshot folder>`
+from the checkout.
+
 ### The clock
 
 The charter has a harness option `clock: real | controlled` (default `real`). Under `controlled` the
@@ -260,9 +369,14 @@ in-app timers.
 | `driver/session.mjs` | One Chromium per persona, launched with a persistent profile. Enforces the step cap and patience cap, and writes the persona log (`log.jsonl`) and the harness signals (`signals.jsonl`: audio levels, file/download/picker events, page errors) |
 | `driver/clock.mjs` | Harness-owned page time for `clock: controlled` (SPEC D22): paused while the persona thinks, paced with real time while the harness acts, human reading time per step, and `wait` up to 600 s that stops when the screen changes |
 | `driver/inject.js` | Init script: an audio tap, plus a visible stand-in for OS file pickers backed by OPFS |
-| `driver/mcp.mjs` | stdio MCP server `browser`. Persona tools are `act` (one step = one call; returns a screenshot) and `end_session`. Harness tools are `harness_start`, `harness_eval`, `harness_signals`, `harness_save_state` and `harness_stop` |
+| `driver/mcp.mjs` | stdio MCP server `browser`. Persona tools are `act` (one step = one call; returns a screenshot) and `end_session`. Viewer tools (design mode) are `view` and `answer`. Harness tools are `harness_start`, `harness_design_start`, `harness_eval`, `harness_signals`, `harness_save_state` and `harness_stop` |
 | `driver/persona-bridge.mjs`, `driver/codex-runner.mjs` | Short-lived two-tool MCP endpoint and isolated Codex CLI runner for one persona or verifier |
 | `driver/ledger.mjs`, `driver/verify.mjs` | Cross-run finding ledger (`.ux-assessment/ledger.yaml`: identity, history, status, decision; `board` prints the results table) and verify-run helpers (`record` verifier replies into `verify.yaml`, `check-state` for saved logins) |
+| `driver/figma.mjs`, `driver/figma-read.js` | Design mode, experimental. The three sources (REST, Figma MCP output, a folder of PNGs) become one design snapshot on disk; commands `parse-url`, `fetch`, `import-mcp` and `import-png`. The script is the read-only code that the main session passes to the Figma `use_figma` tool; Node never runs it |
+| `driver/perception/` | Design mode. `image.mjs` (PNG helpers), `scene.mjs` (a scene from one frame, and the hit test) and `instruments.mjs` (contrast, target size, text load and the other measured values) |
+| `driver/static-session.mjs`, `driver/viewer-tools.mjs` | Design mode. One viewer's session without a browser: the folds, the order of the answers, the caps, link following and the log (`design-log.jsonl`); the viewer's two tools, `view` and `answer` |
+| `driver/design.mjs` | Design mode planner commands: `frames` lists the frames and the level, `crop` writes a picture of one node for you to confirm as a keyed target, `judge` judges every viewer's clicks and writes `design-results.json` and `perception.jsonl` with no model call |
+| `agents/viewer.md` | The design mode viewer. Granted only `view` and `answer`; it is never given a frame name, a layer name, an intent or the file link |
 | `agents/verifier.md` | Rechecks one earlier finding in a browser and returns a verdict (verify-only mode) |
 | `driver/decide.mjs`, `agents/decide.md` | The decide step (SPEC D35): the agent proposes fix, keep or ask per finding from the product documents and the source; the script resolves the documents (`docs`), lists the findings to decide (`todo`), checks every quoted source (`record`) and prints the report's Decisions section (`table`) |
 | `driver/png-diff.mjs` | `node driver/png-diff.mjs a.png b.png` — pixel diff of two screenshots with the harness's thresholds, for triage |
@@ -275,7 +389,7 @@ in-app timers.
 | `agents/recon.md`, `agents/triage.md` | Planner-side agents that write the app profile and the report |
 | `skills/ux-assessment/SKILL.md`, `codex/skills/ux-assessment/SKILL.md` | Shared entry and Codex workflow adapter |
 | `skills/decide/`, `skills/result/`, `skills/settings/` | The three commands: decide a run, show the results table, show and change the settings |
-| `knowledge/` | Plain-markdown knowledge: intake question bank, persona schema and briefing, charter template and harness-config mapping, triage rules, decide rules, and curated domain packs in `knowledge/packs/` (first: `creative-tool.md`) |
+| `knowledge/` | Plain-markdown knowledge: intake question bank, persona schema and briefing, charter template and harness-config mapping, triage rules, decide rules, and curated domain packs in `knowledge/packs/` (first: `creative-tool.md`). For design mode: `knowledge/design.md` (the pipeline) and `knowledge/perception.md` (thresholds, name patterns and the rules from numbers to findings) |
 
 ## Models per role
 
@@ -361,6 +475,7 @@ Caveats:
 - Start Claude Code in the app repository (where `.ux-assessment/` lives), or the per-role figures
   show as "not measured".
 - The Codex main session (recon, triage, orchestration) is not measured yet.
+- Design mode is not in the estimate: `estimate` has no figure for a viewer.
 - Recon on Claude Code is not measured on its own.
 
 ## Where data goes
@@ -376,6 +491,7 @@ Everything a run writes is in `<app repo>/.ux-assessment/`:
 ├── packs/             # project-specific domain packs
 ├── plans/             # persona × scenario matrix + token estimate
 ├── runs/              # one folder per run: report, decisions, fix tasks, logs, screenshots
+├── design/            # design mode: source.yaml, key.yaml, cache/ (frames fetched from Figma)
 ├── ledger.yaml        # cross-run finding identity, history and status
 ├── feedback.md        # finding labels
 ├── docs/              # product documents saved from outside the repo, for the decide step
@@ -384,19 +500,36 @@ Everything a run writes is in `<app repo>/.ux-assessment/`:
 ```
 
 Nothing leaves your machine except the model calls your own harness makes, and nothing is written
-into the plugin checkout.
+into the plugin checkout. Design mode is the one exception, described next.
+
+**Design mode.**
+
+- The driver sends your Figma token only in the `X-Figma-Token` header of a call to the Figma API,
+  `https://api.figma.com`. It follows no redirect from that API, and it sends the token to no image
+  host. It reads the token from `FIGMA_TOKEN` or from `.ux-assessment/secrets.local.yaml`, and it
+  reaches no agent and no log. The variable `FIGMA_API_BASE`, which tests use to name another API
+  address, is accepted only as an `https` address, `http://127.0.0.1` or `http://localhost`.
+- Frames are cached under `.ux-assessment/design/cache/`, with an `index.json` that remembers which
+  copy answered which request, so going back to an earlier file calls Figma no more. A design may be
+  confidential, so keep that folder out of git.
+- Image downloads go to the hosts that Figma returns, over `https` only. When `FIGMA_API_BASE` is
+  set, an image address on `http://127.0.0.1` is also allowed, for tests.
+- A viewer's model call carries the frame as a picture, so the design reaches your model vendor, as a
+  persona's screenshots do.
 
 Keep these out of git:
 
 ```
 .ux-assessment/runs/*/*/screenshots/
 .ux-assessment/runs/*/*/log.jsonl
+.ux-assessment/runs/*/*/design-log.jsonl
 .ux-assessment/runs/*/*/signals.jsonl
 .ux-assessment/runs/*/*/downloads/
 .ux-assessment/state/
 .ux-assessment/secrets.local.yaml
 .ux-assessment/usage.jsonl
 .ux-assessment/docs/
+.ux-assessment/design/cache/
 .ux-assessment/active-run
 .ux-assessment/codex-self-check.json
 ```
@@ -443,6 +576,8 @@ folder to remove it.
 - When the browser itself quits during a session, that session ends there: it is not reopened, and
   triage counts it as an environment error (`browser-closed` signal).
 - Claude Code and Codex on Windows and Linux: see [Not verified yet](#not-verified-yet).
+- Design mode has never been run on a real Figma file, and every part of it is experimental: see
+  [Design mode (Figma): experimental](#design-mode-figma-experimental).
 
 ## Contributing and security
 

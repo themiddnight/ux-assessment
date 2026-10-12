@@ -22,8 +22,17 @@ steps or the persona prompt that shows the problem. For Codex, add the output of
 - A persona reads a canary or file it should not see (the app source, the plugin, your home folder).
 - The Codex runner starts a persona although Codex enabled a feature ux-assessment has not
   classified (it must refuse: it fails closed).
-- A saved login state, `.ux-assessment/secrets.local.yaml`, or an API key reaches a persona
-  briefing, a report or a log that the docs say is safe to commit.
+- A saved login state, `.ux-assessment/secrets.local.yaml`, an API key, or the Figma token
+  (`FIGMA_TOKEN`, or `figma_token` in `.ux-assessment/secrets.local.yaml`) reaches a persona
+  briefing, a viewer briefing, a report or a log that the docs say is safe to commit.
+- The Figma token is sent to a host other than the Figma API address (`https://api.figma.com`, or
+  `FIGMA_API_BASE` when it is `https`, `http://127.0.0.1` or `http://localhost`), or is sent on in
+  a redirect.
+- A viewer (design mode) reaches anything beyond `view` and `answer`, or sees a frame name, a layer
+  name, an intent or the file link.
+- A way to make the plugin write to a Figma file. The opt-in `use_figma` step passes only the fixed
+  script `driver/figma-read.js`, which reads and changes nothing; the Figma tool itself can write, so
+  any other call or script that reaches it is a security issue.
 
 ## Known residual risks
 
@@ -50,6 +59,9 @@ These are known, documented, and not a bypass by themselves:
   path, so one such tab can exceed a `max` limit. `window.open(url)` without `noopener` is not
   affected: the driver loads that URL itself, under the safety rules. Do not rely on `stop_before`
   alone for an action that cannot be undone; point the app at a test backend.
+- **Design mode is experimental.** It has never been run on a real Figma file or against the real Figma
+  MCP server. A viewer's isolation is its two-tool list, and the cache under
+  `.ux-assessment/design/cache/` holds the frames of your design in plain files: keep it out of git.
 
 ## Supported versions
 

@@ -7,12 +7,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
-import { ownerOf, privateWords } from '../../scripts/release-lib.mjs';
+import { issueFormLabels, ownerOf, privateWords } from '../../scripts/release-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 // Every published Markdown doc this file guards.
 const DOCS = ['SECURITY.md', 'CONTRIBUTING.md', 'README.md', 'docs/releasing.md'];
-const TEMPLATES = ['.github/ISSUE_TEMPLATE/config.yml', '.github/ISSUE_TEMPLATE/bug.yml', '.github/ISSUE_TEMPLATE/codex-self-check.yml'];
+const TEMPLATES = ['.github/ISSUE_TEMPLATE/config.yml', '.github/ISSUE_TEMPLATE/bug.yml', '.github/ISSUE_TEMPLATE/codex-self-check.yml', '.github/ISSUE_TEMPLATE/design-mode-report.yml'];
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 const FENCE = /^```[^\n]*\n([\s\S]*?)^```[^\n]*$/gm;
@@ -117,6 +117,17 @@ test('issue templates: valid issue forms; the self-check form asks for what upgr
   assert.match(byId.output.attributes.description, /self-check --json --project/);
 });
 
+test('issue templates: the design mode report names the four sources, the levels and the confidentiality check', () => {
+  const form = YAML.parse(read('.github/ISSUE_TEMPLATE/design-mode-report.yml'));
+  assert.deepEqual(form.labels, ['design-mode']);
+  const byId = Object.fromEntries(form.body.filter((i) => i.id).map((i) => [i.id, i]));
+  assert.deepEqual(byId.source.attributes.options, ['REST with a token', 'Figma MCP server', 'Figma MCP server with the read-only script', 'Folder of PNGs']);
+  assert.deepEqual(byId.level.attributes.options, ['images', 'frames', 'static', 'flows', 'did not finish']);
+  assert.deepEqual(byId.tier.attributes.options, ['keyed', 'goal', 'blind']);
+  for (const id of ['plugin_version', 'harness_os', 'source', 'level', 'tier', 'file_kind']) assert.equal(byId[id].validations?.required, true, `${id} is required`);
+  assert.equal(byId.confidential.attributes.options[0].required, true);
+});
+
 test('SECURITY.md: private reporting, what counts as a bypass, the residual risks', () => {
   const text = read('SECURITY.md');
   assert.match(text, /security\/advisories\/new/);
@@ -128,7 +139,7 @@ test('CONTRIBUTING.md: the sections, the commands CI runs, the isolation invaria
   const text = read('CONTRIBUTING.md');
   const headings = [...text.replace(FENCE, '').matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(headings, ['Set up', 'Run the tests', 'Isolation invariants', 'The Codex self-check',
-    'Dogfood a change', 'Specs, plans and decisions', 'Pull requests', 'Reporting Windows and Linux results']);
+    'Dogfood a change', 'Specs, plans and decisions', 'Pull requests', 'Reporting Windows and Linux results', 'Reporting design mode results']);
   const code = codeOf(text).join('\n');
   for (const cmd of ['node scripts/install.mjs --deps-only', 'npm test',
     'node driver/codex-runner.mjs self-check --offline', 'npx -y @anthropic-ai/claude-code plugin validate .',
@@ -147,7 +158,7 @@ test('CONTRIBUTING.md: the sections, the commands CI runs, the isolation invaria
 const README_HEADINGS = ['What it finds, and what it cannot', 'Support matrix', 'Not verified yet', 'Install',
   'Claude Code from the marketplace', 'From a clone (Claude Code and Codex)', 'Windows and Linux: run the Codex self-check',
   'Notes per OS', 'Use it', 'How it works', 'Pipeline', 'Knowledge isolation', 'What a persona can do',
-  'Triage and evidence', 'Verify fixes', 'The clock', 'Pieces', 'Models per role', 'Tokens and subscriptions',
+  'Triage and evidence', 'Verify fixes', 'Design mode (Figma): experimental', 'The clock', 'Pieces', 'Models per role', 'Tokens and subscriptions',
   'Where data goes', 'Uninstall', 'Known limits', 'Contributing and security'];
 
 const section = (text, heading) => {
@@ -229,6 +240,7 @@ test('docs/releasing.md: every step of the first publication names the command t
     `repos/${repo}/branches/main/protection`, `node scripts/release.mjs check --github ${repo}`, 'git tag v']) {
     assert.ok(code.includes(cmd), `docs/releasing.md shows ${cmd}`);
   }
+  for (const label of issueFormLabels(ROOT)) assert.ok(code.includes(`gh label create ${label} `), `docs/releasing.md creates the label ${label} that an issue form uses`);
   assert.match(read('CONTRIBUTING.md'), /docs\/releasing\.md/);
 });
 

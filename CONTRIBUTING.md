@@ -55,6 +55,7 @@ CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests: m
 These are not negotiable:
 
 - A persona never gets a tool beyond `act` and `end_session` (`agents/persona.md`, `driver/persona-bridge.mjs`).
+- A viewer (design mode) never gets a tool beyond `view` and `answer` (`agents/viewer.md`, `driver/viewer-tools.mjs`), and never sees a frame name, a layer name, an intent or the file link.
 - Nothing a persona produces reaches another persona's briefing, and the verifier never looks for new problems (SPEC section 3, decision D15).
 - The Codex runner disables every feature in `DENY` and refuses to run when Codex enables a feature that is in neither `DENY` nor `ALLOW` (`driver/codex-features.mjs`, D25).
 - A new Codex feature is classified only after a canary run (`self-check`, not `--offline`) shows it cannot reach a canary.
@@ -98,7 +99,7 @@ The run folder is line 1 of `.ux-assessment/active-run`. After a measured run, u
 
 ## Specs, plans and decisions
 
-`SPEC.md` is the design. Decisions are numbered rows (D1 to D33) in section 2. A change that amends one adds a row and points the old row at it, as D30 amends D18. Larger designs live in `docs/superpowers/specs/`. If you change behaviour, update `SPEC.md` and the README in the same pull request.
+`SPEC.md` is the design. Decisions are numbered rows (D1 to D39) in section 2. A change that amends one adds a row and points the old row at it, as D30 amends D18. Larger designs live in `docs/superpowers/specs/`. If you change behaviour, update `SPEC.md` and the README in the same pull request.
 
 ## Pull requests
 
@@ -116,3 +117,25 @@ Maintainers: the release steps are in [docs/releasing.md](docs/releasing.md).
 ## Reporting Windows and Linux results
 
 Codex on Windows and Linux is experimental. A self-check report through the "Codex self-check report" issue form (`.github/ISSUE_TEMPLATE/codex-self-check.yml`) is the most useful contribution a Windows or Linux user can make. An isolation bypass goes to `SECURITY.md`, not to an issue.
+
+## Reporting design mode results
+
+Design mode has never been run on a real Figma file. The author has no Figma file. It was built from Figma's documentation and tested against fixtures written from that documentation, so every source and level in the README table is experimental. Reports from people who run it are the only evidence it will get.
+
+A useful report is a run on a real file. It gives:
+
+- the source: REST with a token, the Figma MCP server (with or without the read-only script), or a folder of PNGs;
+- the level the run reached (`images`, `frames`, `static` or `flows`), or where it stopped;
+- what worked and what failed, with the error text;
+- how many findings you labelled valid and how many not real.
+
+Send it through the "Design mode report" issue form (`.github/ISSUE_TEMPLATE/design-mode-report.yml`). A run that failed is as useful as one that worked.
+
+Never attach a confidential design, your Figma token or a frame export you may not share. Remove file keys, links and private names from error text first. If a token or a frame reaches a viewer, a report or a log, that is an isolation bypass: report it privately as `SECURITY.md` describes.
+
+What moves a row of the README status table:
+
+- "Experimental" becomes "ran once" after one report of a run that finished. The row then links that report.
+- "ran once" becomes "Tested" after two real files with labelled findings, with a comprehension precision of at least 70 % on the first hi-fi one. The 70 % is the author's number. No evidence is behind it.
+
+The fixtures under `driver/test/fixtures/figma/` are written from Figma's documentation. They are not recordings, so a passing test says the code agrees with the fixture, not with Figma. A recording from a real file, with the names and the text replaced, is a welcome pull request.

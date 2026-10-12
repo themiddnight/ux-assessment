@@ -1,0 +1,89 @@
+name: Design mode report
+description: Share a run of design mode (a Figma file or a folder of PNGs). Design mode has never been run on a real Figma file, so these reports are how it moves from experimental to tested.
+labels: [design-mode]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Design mode is experimental. It was built from Figma's documentation and tested only against
+        fixtures the author wrote. A run that failed is just as useful as one that worked.
+
+        Do not attach a confidential design, a Figma token, a frame export you may not share, or a
+        private file name or link. Describe the file instead. If a token or a frame ever reached a
+        persona briefing, a report or a log, report it privately as a security issue (see SECURITY.md).
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version
+      description: The ux-assessment version or commit.
+    validations:
+      required: true
+  - type: input
+    id: harness_os
+    attributes:
+      label: Harness and OS
+      description: For example Claude Code 2.1.296 on macOS 15, or Claude Code on Windows 11.
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      options:
+        - REST with a token
+        - Figma MCP server
+        - Figma MCP server with the read-only script
+        - Folder of PNGs
+    validations:
+      required: true
+  - type: dropdown
+    id: level
+    attributes:
+      label: Level reached
+      description: The level the report names in its first section.
+      options:
+        - images
+        - frames
+        - static
+        - flows
+        - did not finish
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Tier
+      options:
+        - keyed
+        - goal
+        - blind
+    validations:
+      required: true
+  - type: textarea
+    id: file_kind
+    attributes:
+      label: What kind of file
+      description: Fidelity (wireframe or hi-fi), number of frames, and whether it has prototype links. No confidential detail.
+    validations:
+      required: true
+  - type: textarea
+    id: worked
+    attributes:
+      label: What worked
+  - type: textarea
+    id: failed
+    attributes:
+      label: What failed, with error text
+      description: Paste the error text. Remove tokens, file keys, links and private names first.
+  - type: textarea
+    id: findings
+    attributes:
+      label: Were the findings right
+      description: How many findings you labelled valid, and how many not real.
+  - type: checkboxes
+    id: confidential
+    attributes:
+      label: Nothing confidential
+      options:
+        - label: I attached no confidential design, no Figma token and no private name or link.
+          required: true
