@@ -7,7 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { UNPUBLISHED, ciProblems, exportTree, freshRepoProblems, githubProblems, manifestProblems, privateData,
+import YAML from 'yaml';
+import { UNPUBLISHED, ciProblems, exportTree, freshRepoProblems, githubProblems, issueFormLabels, manifestProblems, privateData,
   privateWords, publishableFiles, releaseProblems } from '../../scripts/release-lib.mjs';
 import { main } from '../../scripts/release.mjs';
 
@@ -118,21 +119,57 @@ test('freshRepoProblems: one commit, a noreply e-mail, no unpublished directory'
   assert.deepEqual(freshRepoProblems(fresh), ['spike/ exists in the public tree', 'history has 2 commits; the public repository starts from one']);
 });
 
-test('githubProblems: visibility, labels, private vulnerability reporting, branch protection, a green run on main', () => {
-  const gh = (answers) => (args) => {
-    const key = Object.keys(answers).find((k) => args.join(' ').includes(k));
-    return key ? { status: 0, stdout: JSON.stringify(answers[key]) } : { status: 1, stdout: '' };
-  };
-  const ok = { 'repo view': { visibility: 'PUBLIC' }, 'label list': [{ name: 'bug' }, { name: 'codex-self-check' }],
-    'private-vulnerability-reporting': { enabled: true }, 'branches/main/protection': { allow_force_pushes: { enabled: false }, allow_deletions: { enabled: false } }, 'run list': [{ conclusion: 'success' }] };
-  assert.deepEqual(githubProblems('octo/ux-assessment', gh(ok)), []);
-  const loose = { ...ok, 'branches/main/protection': { allow_force_pushes: { enabled: true }, allow_deletions: { enabled: true } } };
-  assert.deepEqual(githubProblems('octo/ux-assessment', gh(loose)), ['main allows force pushes', 'main allows branch deletion']);
-  assert.deepEqual(githubProblems('octo/ux-assessment', gh({ ...ok, 'branches/main/protection': { url: 'x' } })), ['main allows force pushes', 'main allows branch deletion']);
-  assert.deepEqual(githubProblems('octo/ux-assessment', gh({})), ['gh cannot read octo/ux-assessment: check gh auth status and the name']);
-  assert.deepEqual(githubProblems('octo/ux-assessment', gh({ 'repo view': { visibility: 'PRIVATE' }, 'label list': [{ name: 'bug' }] })), [
-    'octo/ux-assessment is PRIVATE, not PUBLIC', 'label codex-self-check is missing', 'private vulnerability reporting is off',
+// The three shapes a label list takes in an issue form, and a config.yml that is not a form.
+const FORMS = {
+  '.github/ISSUE_TEMPLATE/bug.yml': 'name: Bug\nlabels: [bug]\nbody: []\n',
+  '.github/ISSUE_TEMPLATE/codex-self-check.yml': 'name: Codex\nlabels:\n  - codex-self-check\nbody: []\n',
+  '.github/ISSUE_TEMPLATE/design-mode-report.yml': "name: Design\r\nlabels: [ 'design-mode' ]  # the label of design runs\r\nbody:\r\n  - type: input\r\n    attributes:\r\n      labels: [not-a-label]\r\n",
+  '.github/ISSUE_TEMPLATE/config.yml': 'blank_issues_enabled: false\nlabels: [not-a-form]\n',
+};
+const fakeGh = (answers) => (args) => {
+  const key = Object.keys(answers).find((k) => args.join(' ').includes(k));
+  return key ? { status: 0, stdout: JSON.stringify(answers[key]) } : { status: 1, stdout: '' };
+};
+const OK = { 'repo view': { visibility: 'PUBLIC' }, 'label list': [{ name: 'bug' }, { name: 'codex-self-check' }, { name: 'design-mode' }],
+  'private-vulnerability-reporting': { enabled: true }, 'branches/main/protection': { allow_force_pushes: { enabled: false }, allow_deletions: { enabled: false } }, 'run list': [{ conclusion: 'success' }] };
+
+test('githubProblems: visibility, labels, private vulnerability reporting, branch protection, a green run on main', (t) => {
+  const root = tree(t, FORMS);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh(OK), root), []);
+  const loose = { ...OK, 'branches/main/protection': { allow_force_pushes: { enabled: true }, allow_deletions: { enabled: true } } };
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh(loose), root), ['main allows force pushes', 'main allows branch deletion']);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh({ ...OK, 'branches/main/protection': { url: 'x' } }), root), ['main allows force pushes', 'main allows branch deletion']);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh({}), root), ['gh cannot read octo/ux-assessment: check gh auth status and the name']);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh({ 'repo view': { visibility: 'PRIVATE' }, 'label list': [{ name: 'bug' }] }), root), [
+    'octo/ux-assessment is PRIVATE, not PUBLIC', 'label codex-self-check is missing', 'label design-mode is missing', 'private vulnerability reporting is off',
     'main has no branch protection', 'the latest ci run on main is not green']);
+});
+
+test('githubProblems: the labels it requires are those of the issue forms, so a new form cannot be forgotten', (t) => {
+  const root = tree(t, { ...FORMS, '.github/ISSUE_TEMPLATE/feature.yaml': 'name: Feature\nlabels: ["enhancement"]\nbody: []\n' });
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh(OK), root), ['label enhancement is missing']);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh({ ...OK, 'label list': [{ name: 'enhancement' }, { name: 'bug' }, { name: 'codex-self-check' }] }), root), ['label design-mode is missing']);
+  const none = tree(t, { '.github/ISSUE_TEMPLATE/config.yml': FORMS['.github/ISSUE_TEMPLATE/config.yml'] });
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh(OK), none), ['no issue form under .github/ISSUE_TEMPLATE names a label']);
+  assert.deepEqual(githubProblems('octo/ux-assessment', fakeGh(OK), tree(t, {})), ['no issue form under .github/ISSUE_TEMPLATE names a label']);
+});
+
+test('issueFormLabels: every form of this repository, read the way the YAML parser reads it, and not config.yml', (t) => {
+  const folder = path.join(ROOT, '.github', 'ISSUE_TEMPLATE');
+  const parsed = fs.readdirSync(folder).filter((name) => name !== 'config.yml').sort()
+    .flatMap((name) => YAML.parse(fs.readFileSync(path.join(folder, name), 'utf8')).labels);
+  assert.deepEqual(parsed, ['bug', 'codex-self-check', 'design-mode']);
+  assert.deepEqual(issueFormLabels(ROOT), parsed);
+  assert.deepEqual(issueFormLabels(tree(t, FORMS)), ['bug', 'codex-self-check', 'design-mode'], 'a flow list, a block list, a quoted label with a comment, CRLF lines');
+});
+
+test('release.mjs: check --github requires the labels of the forms of the tree it checks', (t) => {
+  const clean = tree(t, { ...good(), ...FORMS });
+  const labels = (names) => fakeGh({ ...OK, 'label list': names.map((name) => ({ name })) });
+  const green = cli(['check', clean, '--github', 'octo/ux-assessment'], clean, labels(['bug', 'codex-self-check', 'design-mode']));
+  assert.deepEqual([green.code, green.out, green.err], [0, ['release check: ok'], []]);
+  const red = cli(['check', clean, '--github', 'octo/ux-assessment'], clean, labels(['bug', 'codex-self-check']));
+  assert.deepEqual([red.code, red.out, red.err], [1, ['release check: 1 problem(s)'], ['label design-mode is missing']]);
 });
 
 test('release.mjs: check prints the problems and exits 1, ok exits 0, a bad command line exits 2', (t) => {

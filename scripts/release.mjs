@@ -44,7 +44,7 @@ export function main(argv, { out = console.log, err = console.error, root = HERE
     err(`release: no directory ${target}`);
     return 2;
   }
-  const problems = [...releaseProblems(target), ...(args.fresh ? freshRepoProblems(target) : []), ...(args.github ? githubProblems(args.github, gh) : [])];
+  const problems = [...releaseProblems(target), ...(args.fresh ? freshRepoProblems(target) : []), ...(args.github ? githubProblems(args.github, gh, target) : [])];
   for (const problem of problems) err(problem);
   out(problems.length ? `release check: ${problems.length} problem(s)` : 'release check: ok');
   return problems.length ? 1 : 0;

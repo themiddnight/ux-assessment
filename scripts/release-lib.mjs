@@ -227,8 +227,37 @@ export function freshRepoProblems(dir) {
   return problems;
 }
 
-/** GitHub settings of the published repository (`gh` must be signed in). */
-export function githubProblems(repo, gh = (args) => spawnSync('gh', args, { encoding: 'utf8' })) {
+/**
+ * The labels the issue forms of the tree put on their issues, in the order of the form file names, once each. Not a YAML parser (this file
+ * uses Node built-ins only): it reads the top-level `labels` key as a one-line `[a, b]` list or a `- a` block list, the two shapes GitHub's
+ * documentation shows. A test compares it with the `yaml` package on every form of this repository.
+ */
+export function issueFormLabels(root) {
+  const folder = path.join(root, '.github', 'ISSUE_TEMPLATE');
+  let names = [];
+  try { names = fs.readdirSync(folder); } catch { /* no forms */ }
+  const unquote = (value) => value.trim().replace(/^(['"])(.*)\1$/, '$2');
+  const labels = [];
+  for (const name of names.filter((n) => /\.ya?ml$/.test(n) && !/^config\.ya?ml$/.test(n)).sort()) {
+    const lines = fs.readFileSync(path.join(folder, name), 'utf8').replace(/\r\n/g, '\n').split('\n');
+    const at = lines.findIndex((line) => /^labels\s*:/.test(line));
+    if (at < 0) continue;
+    const inline = lines[at].replace(/^labels\s*:/, '').replace(/\s+#.*$/, '').trim();
+    if (inline.startsWith('[')) labels.push(...inline.replace(/^\[|\]$/g, '').split(',').map(unquote));
+    else if (inline) labels.push(unquote(inline));
+    else {
+      for (const line of lines.slice(at + 1)) {
+        const item = line.match(/^\s+-\s+(.+?)\s*(?:\s#.*)?$/);
+        if (!item) break;
+        labels.push(unquote(item[1]));
+      }
+    }
+  }
+  return [...new Set(labels.filter(Boolean))];
+}
+
+/** GitHub settings of the published repository (`gh` must be signed in). The labels it needs are those of the issue forms under `root`. */
+export function githubProblems(repo, gh = (args) => spawnSync('gh', args, { encoding: 'utf8' }), root) {
   const api = (args) => {
     const r = gh(args);
     try { return r.status === 0 ? JSON.parse(r.stdout) : null; } catch { return null; }
@@ -237,7 +266,9 @@ export function githubProblems(repo, gh = (args) => spawnSync('gh', args, { enco
   if (!info) return [`gh cannot read ${repo}: check gh auth status and the name`];
   const problems = info.visibility === 'PUBLIC' ? [] : [`${repo} is ${info.visibility}, not PUBLIC`];
   const labels = api(['label', 'list', '--repo', repo, '--limit', '200', '--json', 'name']) ?? [];
-  for (const name of ['bug', 'codex-self-check']) if (!labels.some((l) => l.name === name)) problems.push(`label ${name} is missing`);
+  const wanted = issueFormLabels(root);
+  if (!wanted.length) problems.push('no issue form under .github/ISSUE_TEMPLATE names a label');
+  for (const name of wanted) if (!labels.some((l) => l.name === name)) problems.push(`label ${name} is missing`);
   if (api(['api', `repos/${repo}/private-vulnerability-reporting`])?.enabled !== true) problems.push('private vulnerability reporting is off');
   const protection = api(['api', `repos/${repo}/branches/main/protection`]);
   if (!protection) problems.push('main has no branch protection');
