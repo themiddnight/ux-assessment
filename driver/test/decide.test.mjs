@@ -27,6 +27,9 @@ const project = (t) => {
   return { root, put, ux: (rel, body) => put(path.join('.ux-assessment', rel), body) };
 };
 
+// Paths in the driver's output use forward slashes on every OS.
+const slashed = (p) => p.split(path.sep).join('/');
+
 test('the default list', () => {
   assert.deepEqual(DEFAULT_DOCS, ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**', '.ux-assessment/docs/**']);
 });
@@ -61,7 +64,7 @@ test('resolveDocs: an absolute path outside the project stays absolute; a missin
   fs.writeFileSync(path.join(other, 'logo.png'), 'x');
   p.put('README.md');
   const r = resolveDocs(p.root, ['README.md', path.join(other, 'brand'), path.join(other, 'terms.md'), path.join(other, '*.md'), 'docs/missing.md', path.join(other, 'logo.png')]);
-  assert.deepEqual(r.files, ['README.md', path.join(other, 'brand/voice.md'), path.join(other, 'terms.md')]);
+  assert.deepEqual(r.files, ['README.md', slashed(path.join(other, 'brand/voice.md')), slashed(path.join(other, 'terms.md'))]);
   assert.deepEqual(r.warnings, ['product_docs: "docs/missing.md" matches no document',
     `product_docs: "${path.join(other, 'logo.png')}" is not a document (.md, .mdx, .txt or .rst), skipped`]);
 });
@@ -553,7 +556,7 @@ test('CLI record accepts a bare list, reads a source outside the project only wh
   syncLedger(p.root);
   const ledger = YAML.parse(fs.readFileSync(path.join(p.root, '.ux-assessment/ledger.yaml'), 'utf8'));
   assert.equal(ledger.findings['F-01'].decision.value, 'keep');
-  assert.equal(ledger.findings['F-01'].decision.sources[0].path, path.join(other, 'brand.md'));
+  assert.equal(ledger.findings['F-01'].decision.sources[0].path, slashed(path.join(other, 'brand.md')));
   assert.deepEqual(ledger.findings['F-02'].decision, { value: 'fix', by: 'agent', reason: 'no doc', sources: [], options: [], run: '2026-10-12' });
 });
 
