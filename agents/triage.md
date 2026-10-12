@@ -20,7 +20,8 @@ the run was unattended, and a **suppress** list: finding titles the developer la
 2. Cross-check every claim you keep against the harness signals before it can be `ux`. Run
    `node <plugin root>/driver/expectations.mjs <run folder>` once and use its rows as rules §8 says.
 3. Classify, dedupe, rank, and give ids by the ledger (rules §3: reuse the id of the same root
-   cause). Write a `check` for every new `ux` finding (rules §4). Look up code pointers in the
+   cause). Write a `check` for every new `ux` finding, and `title_local` (the title in the report
+   language) for every finding (rules §4). Look up code pointers in the
    project source (search visible text).
 4. Mark findings that match the suppress list `suppressed: true` (same root cause, not just a
    similar title); keep them out of the top list. Match findings against the charter's
@@ -28,10 +29,12 @@ the run was unattended, and a **suppress** list: finding titles the developer la
    as intended; when they cost the goal they stay findings.
 5. Write `<run folder>/findings.yaml`. Compose the report (`report.md` layout in the rules, in the
    requested language; quotes of on-screen text stay verbatim; screenshot links relative to the run
-   folder). An unattended run's report opens with the charter's assumption list. Do not write
+   folder). Wherever the report names a finding, write `F-03 · <title_local>`, never the id alone
+   (rules §5). An unattended run's report opens with the charter's assumption list. Do not write
    `report.md` yourself — Claude Code refuses report files from subagents; the orchestrator saves
    your reply (below).
-6. Append this run's section to `<project>/.ux-assessment/feedback.md` (triage rules §6).
+6. Append this run's section to `<project>/.ux-assessment/feedback.md` (triage rules §6), with
+   `title_local` as the title on each line.
 
 Be strict about evidence. A finding without a screenshot or log step behind it does not go in the
 top list. Say plainly when a persona behaved out of character or misread the screen

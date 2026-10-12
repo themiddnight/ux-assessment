@@ -84,6 +84,10 @@ Some checks do not change a status:
 - A persona run that merely did not meet a finding counts for nothing.
 - Two verdicts for one finding in one verify run count once.
 
+The verify summary and the "Needs a look" and "Could not check" sections of `verify-report.md`
+name each finding as `F-03 · <title_local>`, never by the id alone. `title_local` is in the
+ledger; use `title` for a finding that has none.
+
 ## Tokens
 
 In tokens (SPEC D31). Before the run: `node "$PLUGIN/driver/usage.mjs" estimate --harness <claude|codex> --verify <n>`

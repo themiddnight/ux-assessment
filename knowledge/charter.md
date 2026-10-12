@@ -38,7 +38,7 @@ Planner-only. Written after intake; the user approves it before personas are gen
 ## Intended behaviors
 <behaviors that look like friction but are on purpose; triage only, never shown to personas.
 Empty is fine. One line each, in user terms:>
-- <what the app does> — why: <the design reason> — source: <developer · label F-07 (run <name>)>
+- <what the app does> — why: <the design reason> — source: <developer · label F-07 (run <name>) · decide F-07 (docs/prd.md:42)>
 
 ## Safety rules
 | tier | actions |

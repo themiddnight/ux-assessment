@@ -97,6 +97,7 @@ harness.)
 ```yaml
 id: F-03
 title: "No visual sign that sound is playing"
+title_local: "ไม่มีอะไรบอกว่าเสียงกำลังเล่น"   # the title in the report language
 kind: ux                # ux | agent_error | env_error
 confidence: signal      # signal | watch | noise
 severity: high
@@ -118,6 +119,9 @@ suppressed: false       # true when it matches the suppress list, or an intended
 intended: null          # the charter's intended behavior it matches, if any
 ```
 
+`title` is English, as every internal file is. `title_local` is the same title in the report
+language, and equals `title` when the report is in English. Every record has both.
+
 `check` is required on every new `ux` finding, and keeps its value on a finding whose id is reused
 (update it when the spot moved). `where` describes how a user reaches the spot. `condition` is the
 one observable fact that makes the finding true, checkable on one screen, or on one screen plus
@@ -125,7 +129,12 @@ one observable fact that makes the finding true, checkable on one screen, or on 
 
 ## 5. `report.md` (in the developer's language; findings' quotes stay verbatim)
 
-- **Summary** — always first: the top findings as one line each (id, severity, title), counts per
+**The id rule.** Every place the report names a finding writes its id with its title:
+`F-03 · <title_local>`. Never an id alone. That covers the Summary, the top findings, the
+per-persona journeys, the "Finding" column of the §8 table, the one-line lists and every
+cross-reference from one finding to another.
+
+- **Summary** — always first: the top findings as one line each (`F-03 · <title_local>`, severity), counts per
   kind (ux / agent_error / env_error), how many were suppressed or working as intended, and anything that makes this
   run's results unreliable.
 0. **Unattended runs only: Assumptions** — first, before anything else: the charter's
@@ -155,14 +164,17 @@ reply (agents/triage.md); the orchestrator saves it as `report.md`.
 
 Append a section for this run to `<project>/.ux-assessment/feedback.md` (create it with the heading
 `# Finding labels` if missing; never change other runs' sections). Re-triage of a run replaces
-that run's section, keeping every label and note already filled in for a finding with the same
-root cause. One line per `ux` finding that is not
+that run's section, keeping every label, note and `suggest:` part already filled in for a finding
+with the same root cause. One line per `ux` finding that is not
 suppressed:
 
 ```markdown
 ## Run <run folder name> (runs/<run folder name>/report.md)
-- F-03 No visual sign that sound is playing — label: ? — note:
+- F-03 ไม่มีอะไรบอกว่าเสียงกำลังเล่น — label: ? — note:
 ```
+
+The title on the line is `title_local`: the developer reads this file. The decide step later adds
+`— suggest: …` before `— label:` (`knowledge/decide.md`).
 
 The developer labels each line later: `valid`, `not real` (with a reason in the note) or
 `won't fix`.
@@ -232,7 +244,7 @@ the number of personas, then by severity:
 
 | Control | Where | Expected | What happened | Personas | Finding |
 |---|---|---|---|---|---|
-| the grey "Export" tile | Beat tab | "a file downloads" (guess) | nothing on screen changed | 2 of 4 | F-07 |
+| the grey "Export" tile | Beat tab | "a file downloads" (guess) | nothing on screen changed | 2 of 4 | F-07 · <title_local> |
 
 Under the table give one line of totals for the run: how many expectations were recorded, and how
 many were `sure`, `guess` and `cannot_tell`. Then one line naming the controls where every persona
