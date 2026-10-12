@@ -23,6 +23,8 @@ test('defaults: Claude from the agent frontmatter, Codex what the dogfood ran on
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'recon' }), { model: 'opus', source: 'default' });
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'recon', depth: 'quick' }), { model: 'sonnet', source: 'default' });
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'orchestrator' }), { model: null, source: 'default' });
+  assert.deepEqual(resolveModel({ harness: 'claude', role: 'decide' }), { model: 'opus', source: 'default' });
+  assert.throws(() => resolveModel({ harness: 'codex', role: 'decide' }), /unknown codex role "decide"/); // Codex has no decide subagent
   assert.deepEqual(resolveModel({ harness: 'codex', role: 'persona' }), { model: 'gpt-6-sol', effort: 'medium', source: 'default' });
   assert.deepEqual(resolveModel({ harness: 'codex', role: 'self-check' }), { model: 'gpt-6-sol', effort: 'low', source: 'default' });
   assert.deepEqual(resolveModel({ harness: 'codex', role: 'triage' }), { model: null, effort: null, source: 'default' });
@@ -49,6 +51,13 @@ test('job > config > default, field by field', (t) => {
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'persona', config }), { model: 'haiku', source: 'config' });
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'triage', config }), { model: null, source: 'config' });
   assert.deepEqual(resolveModel({ harness: 'claude', role: 'recon', config, depth: 'quick' }), { model: 'sonnet', source: 'default' });
+});
+
+test('decide is settable in config.yaml, nested or flat; on Codex the key is ignored', (t) => {
+  const nested = readModelsConfig(project(t, 'models:\n  claude: {decide: sonnet}\n  codex: {decide: {model: gpt-6-sol}}\n'));
+  assert.deepEqual(nested, { claude: { decide: 'sonnet' }, codex: {} });
+  assert.deepEqual(resolveModel({ harness: 'claude', role: 'decide', config: nested }), { model: 'sonnet', source: 'config' });
+  assert.deepEqual(readModelsConfig(project(t, 'models: {decide: inherit}\n')), { claude: { decide: null }, codex: {} });
 });
 
 test("an old flat models map is Claude's; planner and other unknown keys are ignored; no file or no models is the defaults", (t) => {
@@ -87,7 +96,7 @@ test('models.mjs show prints both harnesses on stdout and the warnings on stderr
   assert.equal(r.status, 0);
   assert.equal(r.stdout.replace(/\r\n/g, '\n'), [
     'claude persona: haiku (config)', 'claude verifier: sonnet (default)', 'claude recon: opus (default); quick depth: sonnet',
-    'claude triage: opus (default)', 'claude orchestrator: the session model (default)',
+    'claude triage: opus (default)', 'claude decide: opus (default)', 'claude orchestrator: the session model (default)',
     'codex persona: gpt-6-luna medium (config)', 'codex verifier: gpt-6-sol medium (default)', 'codex self-check: gpt-6-sol low (default)',
     'codex recon: the session model (default)', 'codex triage: the session model (default)', 'codex orchestrator: the session model (default)', ''].join('\n'));
   assert.equal(r.stderr.replace(/\r\n/g, '\n'),

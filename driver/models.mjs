@@ -12,7 +12,7 @@ const MODEL_RE = /^[\w.-]+$/;
 
 /** Claude: the agents' frontmatter (null = the user's session model). Codex: what the dogfood ran on (null = the main session). */
 export const DEFAULTS = Object.freeze({
-  claude: Object.freeze({ persona: 'sonnet', verifier: 'sonnet', recon: 'opus', triage: 'opus', orchestrator: null }),
+  claude: Object.freeze({ persona: 'sonnet', verifier: 'sonnet', recon: 'opus', triage: 'opus', decide: 'opus', orchestrator: null }),
   codex: Object.freeze({
     persona: Object.freeze({ model: 'gpt-6-sol', effort: 'medium' }),
     verifier: Object.freeze({ model: 'gpt-6-sol', effort: 'medium' }),
@@ -20,8 +20,8 @@ export const DEFAULTS = Object.freeze({
     recon: null, triage: null, orchestrator: null,
   }),
 });
-/** Roles `.ux-assessment/config.yaml` may set. Codex recon, triage and orchestrator are the user's main session. */
-const CONFIG_ROLES = { claude: ['persona', 'verifier', 'recon', 'triage'], codex: ['persona', 'verifier'] };
+/** Roles `.ux-assessment/config.yaml` may set. Codex recon, triage and orchestrator are the user's main session, and Codex has no decide subagent. */
+const CONFIG_ROLES = { claude: ['persona', 'verifier', 'recon', 'triage', 'decide'], codex: ['persona', 'verifier'] };
 /** Quick-depth recon runs on Sonnet unless the config names a recon model. */
 export const QUICK_RECON = 'sonnet';
 export const CHEAP_MODELS = ['haiku', 'claude-haiku-4-5', 'gpt-6-luna'];

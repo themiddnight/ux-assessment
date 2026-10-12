@@ -224,7 +224,7 @@ export function selectRun(records, run) {
   return [...additive, ...latest.values()];
 }
 
-const ROLE_ORDER = ['orchestrator', 'recon', 'persona', 'verifier', 'triage'];
+const ROLE_ORDER = ['orchestrator', 'recon', 'persona', 'verifier', 'triage', 'decide'];
 const rank = (role) => (ROLE_ORDER.includes(role) ? ROLE_ORDER.indexOf(role) : ROLE_ORDER.length);
 
 /** Role × model rows; `input` includes cache writes (the headline folds them in); `sessions` = distinct ids. */
@@ -342,9 +342,9 @@ export function estimate({ harness, personas = 0, cap = 0, verify = 0, depth = '
     const scale = (key) => steps.map((n) => sessions * n * c.per_step[key]);
     return rows.push({ role, model: c.model, sessions, measured: true, input: scale('input'), cached_input: scale('cached_input'), output: scale('output') });
   };
-  const fixed = (role, key) => {
+  const fixed = (role, key, model = null) => {
     const c = table[key];
-    if (!c?.fixed) return rows.push({ role, model: c?.model ?? null, sessions: 1, measured: false });
+    if (!c?.fixed) return rows.push({ role, model: c?.model ?? model, sessions: 1, measured: false });
     return rows.push({ role, model: c.model, sessions: 1, measured: true, input: c.fixed.input, cached_input: c.fixed.cached_input, output: c.fixed.output });
   };
   if (verify > 0) {
@@ -355,6 +355,7 @@ export function estimate({ harness, personas = 0, cap = 0, verify = 0, depth = '
   if (depth !== 'none') fixed('recon', depth === 'quick' ? 'recon_quick' : 'recon');
   perStep('persona', personas, cap);
   fixed('triage', 'triage');
+  fixed('decide', 'decide', harness === 'claude' ? 'opus' : null); // no coefficients yet; models.mjs cannot be imported here (no yaml in the hook)
   fixed('orchestrator', 'orchestrator');
   return rows;
 }

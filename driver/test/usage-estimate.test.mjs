@@ -34,10 +34,11 @@ test('a new Claude run: recon, personas (low 8 steps, high the cap), triage, orc
     '| recon | opus | 1 | not measured | not measured | not measured |',
     '| persona | sonnet | 3 | 40.8k–102.0k | 492.0k–1.23M | 8.4k–21.0k |',
     '| triage | opus | 1 | 60.0k–107.0k | 626.0k–2.34M | 20.0k–33.0k |',
+    '| decide | opus | 1 | not measured | not measured | not measured |',
     '| orchestrator | sonnet | 1 | 76.0k–84.0k | 916.0k–1.21M | 18.0k–25.0k |',
     '',
     'Low: 8 steps per session (or the cap if lower); high: the cap (15 for a verifier). Input includes cache writes.',
-    'API-equivalent at list prices on 2026-09-29: $1.54–$2.88 (cache writes priced as input); not measured: recon',
+    'API-equivalent at list prices on 2026-09-29: $1.54–$2.88 (cache writes priced as input); not measured: recon, decide',
   ].join('\n'));
 });
 
@@ -63,7 +64,12 @@ test('Codex: nothing measured yet, so no dollar figure', () => {
   const text = formatEstimate(estimate({ harness: 'codex', personas: 3, cap: 30, coefficients: COEFFICIENTS }));
   assert.match(text, /^\| persona \| gpt-6-sol \| 3 \| not measured \| not measured \| not measured \|$/m);
   assert.match(text, /^\| triage \| the session model \| 1 \| not measured /m);
-  assert.match(text, /API-equivalent at list prices on 2026-09-29: none \(no measured row has a listed price\); not measured: recon, persona, triage, orchestrator$/);
+  assert.match(text, /^\| decide \| the session model \| 1 \| not measured /m);
+  assert.match(text, /API-equivalent at list prices on 2026-09-29: none \(no measured row has a listed price\); not measured: recon, persona, triage, decide, orchestrator$/);
+});
+
+test('a verify estimate has no decide row', () => {
+  assert.deepEqual(estimate({ harness: 'claude', verify: 2, coefficients: COEFFICIENTS }).map((r) => r.role), ['verifier', 'orchestrator']);
 });
 
 test('estimate options', () => {
