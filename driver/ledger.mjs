@@ -36,9 +36,9 @@ export function normalizeLabel(raw) {
   return { label: null, unknown: String(raw).trim() };
 }
 
-const SECTION_RE = /^\s*##\s*run\s+(\S+)/i;
+export const SECTION_RE = /^\s*##\s*run\s+(\S+)/i;
 const LINE_RE = /^\s*[-*]\s+([A-Za-z]+-\d+)\b(.*)\s+[—–-]{1,2}\s*label\s*:\s*(.*?)\s*(?:[—–-]{1,2}\s*note\s*:\s*(.*?))?\s*$/i;
-const BULLET_ID_RE = /^\s*[-*]\s+([A-Za-z]+-\d+)\b/;
+export const BULLET_ID_RE = /^\s*[-*]\s+([A-Za-z]+-\d+)\b/;
 
 export function parseFeedback(text) {
   const labels = [];
@@ -352,7 +352,7 @@ function insideRoot(root, id, raw, p) {
   return !out;
 }
 
-function evidenceFor(root, id, entry) {
+export function evidenceFor(root, id, entry) {
   for (const s of [...entry.sightings].reverse()) {
     const shots = (s.evidence ?? []).filter((x) => typeof x === 'string' && /\.png$/i.test(x.trim()))
       .map((x) => [x, x.trim().startsWith('runs/') ? path.join(root, x.trim()) : path.join(root, 'runs', s.run, x.trim())])
