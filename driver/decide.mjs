@@ -44,6 +44,13 @@ function walk(dir, depth) {
   return out;
 }
 
+/** True for a path of the project below node_modules, .git or .ux-assessment; the saved documents are the exception. */
+function skipped(root, abs) {
+  if (!isInside(root, abs)) return false;
+  const rel = slashed(path.relative(root, abs));
+  return (rel === SAVED_DOCS || rel.startsWith(`${SAVED_DOCS}/`) ? rel.slice(SAVED_DOCS.length) : rel).split('/').some((s) => SKIP_DIRS.has(s));
+}
+
 /** `*` stays inside a folder name, `**` crosses folders; nothing else is special. */
 function globRegex(segments) {
   const last = segments.length - 1;
@@ -58,26 +65,29 @@ function expand(root, pattern) {
   const first = segments.findIndex((s) => GLOB.test(s));
   if (first < 0) {
     const target = path.resolve(root, pattern);
-    const rel = slashed(path.relative(root, target));
-    if (isInside(root, target) && rel !== SAVED_DOCS && !rel.startsWith(`${SAVED_DOCS}/`) && rel.split('/').some((s) => SKIP_DIRS.has(s))) return [];
+    if (skipped(root, target)) return [];
     if (statFile(target)) return [target];
     return fs.existsSync(target) ? walk(target, Infinity) : [];
   }
   const rest = segments.slice(first);
   const base = path.resolve(root, segments.slice(0, first).join('/') || (path.isAbsolute(pattern) ? path.sep : '.'));
+  if (skipped(root, base)) return [];
   const re = globRegex(rest);
   return walk(base, rest.includes('**') ? Infinity : rest.length - 1).filter((f) => re.test(slashed(path.relative(base, f))));
 }
 
-/** Product documents for the patterns: sorted, one per real file, relative to the project (outside it: absolute). */
-export function resolveDocs(project, patterns) {
+/**
+ * Product documents for the patterns: sorted, one per real file, relative to the project (outside it: absolute).
+ * A pattern that matches nothing warns, unless `quiet`: that is for the default list, which fits no project in full.
+ */
+export function resolveDocs(project, patterns, { quiet = false } = {}) {
   const root = path.resolve(project);
   const warnings = [];
   const shown = new Map(); // path as shown → absolute
   for (const pattern of patterns) {
     const hits = expand(root, pattern);
     const docs = hits.filter((f) => DOC_EXT.test(f));
-    if (!docs.length && !DEFAULT_DOCS.includes(pattern)) {
+    if (!docs.length && !quiet) {
       const named = !GLOB.test(pattern) && hits.length === 1 && hits[0] === path.resolve(root, pattern);
       warnings.push(named ? `product_docs: "${pattern}" is not a document (.md, .mdx, .txt or .rst), skipped`
         : `product_docs: "${pattern}" matches no document`);
@@ -109,7 +119,7 @@ export function decideConfig(project) {
   if (decide != null && !off && decide !== true && !/^(on|true|yes)$/i.test(String(decide))) throw new Error(`decide in ${file}: must be on or off`);
   const patterns = docs == null ? DEFAULT_DOCS : typeof docs === 'string' ? [docs] : docs;
   if (!Array.isArray(patterns) || !patterns.every((p) => typeof p === 'string')) throw new Error(`product_docs in ${file}: must be a list of paths`);
-  return { enabled: !off, patterns };
+  return { enabled: !off, patterns, defaults: docs == null };
 }
 
 const readRunFindings = (project, run) => {
@@ -314,10 +324,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (run) checkRunName(run);
     const json = (value) => process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
     if (cmd === 'docs') {
-      const { enabled, patterns } = decideConfig(project);
-      json({ enabled, patterns, ...resolveDocs(project, patterns) });
+      const { enabled, patterns, defaults } = decideConfig(project);
+      json({ enabled, patterns, ...resolveDocs(project, patterns, { quiet: defaults }) });
     } else if (cmd === 'todo') {
-      const docs = resolveDocs(project, decideConfig(project).patterns);
+      const { patterns, defaults } = decideConfig(project);
+      const docs = resolveDocs(project, patterns, { quiet: defaults });
       for (const w of docs.warnings) warn(w);
       json({ run, findings: todoFindings(project, run), docs: docs.files });
     } else if (cmd === 'record') {

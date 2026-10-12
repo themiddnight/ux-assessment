@@ -35,7 +35,7 @@ test('resolveDocs: the defaults find documents only, sorted, never inside node_m
   const p = project(t);
   for (const rel of ['AGENTS.md', 'README.md', 'README', 'SPEC.md', 'PRD-v2.md', 'PRD', 'notes.md', 'docs/b.md', 'docs/a/deep.mdx', 'docs/z.txt',
     'docs/guide.rst', 'docs/logo.png', 'docs/node_modules/x.md', 'node_modules/pkg/README.md', '.git/docs/y.md', '.ux-assessment/docs/z.md', '.ux-assessment/docs/logo.png', '.ux-assessment/charter.md', '.ux-assessment/runs/r/report.md']) p.put(rel);
-  assert.deepEqual(resolveDocs(p.root, DEFAULT_DOCS), {
+  assert.deepEqual(resolveDocs(p.root, DEFAULT_DOCS, { quiet: true }), {
     files: ['.ux-assessment/docs/z.md', 'AGENTS.md', 'PRD-v2.md', 'README.md', 'SPEC.md', 'docs/a/deep.mdx', 'docs/b.md', 'docs/guide.rst', 'docs/z.txt'], warnings: [] });
   assert.deepEqual(resolveDocs(p.root, ['.ux-assessment/docs']).files, ['.ux-assessment/docs/z.md']);
   assert.deepEqual(resolveDocs(p.root, ['.ux-assessment/runs', '.ux-assessment']).files, []);
@@ -66,6 +66,26 @@ test('resolveDocs: an absolute path outside the project stays absolute; a missin
     `product_docs: "${path.join(other, 'logo.png')}" is not a document (.md, .mdx, .txt or .rst), skipped`]);
 });
 
+test('resolveDocs: a glob does not walk into node_modules, .git or .ux-assessment (except the saved documents)', (t) => {
+  const p = project(t);
+  for (const rel of ['.ux-assessment/feedback.md', '.ux-assessment/runs/r/report.md', '.ux-assessment/charter.md', '.ux-assessment/docs/z.md', '.ux-assessment/docs/sub/y.md',
+    '.ux-assessment/docs/node_modules/x.md', 'node_modules/pkg/README.md', 'node_modules/pkg/docs/a.md', '.git/notes.md', 'docs/a.md']) p.put(rel);
+  const files = (pattern) => resolveDocs(p.root, [pattern]).files;
+  for (const pattern of ['.ux-assessment/**', '.ux-assessment/*/*.md', '.ux-assessment/**/*.md', '.ux-assessment/runs/**', 'node_modules/**', 'node_modules/*/README.md',
+    'node_modules/**/*.md', '.git/**', '.git/*.md', 'docs/../.ux-assessment/**', '.ux-assessment/docs/node_modules/**']) assert.deepEqual(files(pattern), [], pattern);
+  assert.deepEqual(files('.ux-assessment/docs/**'), ['.ux-assessment/docs/sub/y.md', '.ux-assessment/docs/z.md']);
+  assert.deepEqual(files('.ux-assessment/docs/*.md'), ['.ux-assessment/docs/z.md']);
+  assert.deepEqual(files('**/*.md'), ['docs/a.md']);
+  assert.deepEqual(resolveDocs(p.root, ['node_modules/**']).warnings, ['product_docs: "node_modules/**" matches no document']);
+});
+
+test('resolveDocs: a pattern that matches nothing warns unless quiet; quiet is for a product_docs the developer did not set', (t) => {
+  const p = project(t);
+  assert.deepEqual(resolveDocs(p.root, ['SPEC.md']).warnings, ['product_docs: "SPEC.md" matches no document']);
+  assert.deepEqual(resolveDocs(p.root, DEFAULT_DOCS).warnings.length, DEFAULT_DOCS.length);
+  assert.deepEqual(resolveDocs(p.root, DEFAULT_DOCS, { quiet: true }).warnings, []);
+});
+
 test('resolveDocs: at most 200 files, and the warning says how many were left out', (t) => {
   const p = project(t);
   for (let i = 0; i < 205; i++) p.put(`docs/d${String(i).padStart(3, '0')}.md`);
@@ -78,13 +98,17 @@ test('resolveDocs: at most 200 files, and the warning says how many were left ou
 
 test('decideConfig: defaults, product_docs, decide off, and a bad value is an error', (t) => {
   const p = project(t);
-  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: DEFAULT_DOCS });
+  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: DEFAULT_DOCS, defaults: true });
   p.ux('config.yaml', 'product_docs: [docs/, SPEC.md]\ndecide: off\n');
-  assert.deepEqual(decideConfig(p.root), { enabled: false, patterns: ['docs/', 'SPEC.md'] });
+  assert.deepEqual(decideConfig(p.root), { enabled: false, patterns: ['docs/', 'SPEC.md'], defaults: false });
   p.ux('config.yaml', 'decide: on\nproduct_docs: docs/prd.md\n');
-  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: ['docs/prd.md'] });
+  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: ['docs/prd.md'], defaults: false });
   p.ux('config.yaml', 'product_docs: []\n');
-  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: [] });
+  assert.deepEqual(decideConfig(p.root), { enabled: true, patterns: [], defaults: false });
+  p.ux('config.yaml', 'decide: on\n');
+  assert.equal(decideConfig(p.root).defaults, true);
+  p.ux('config.yaml', `product_docs: ${JSON.stringify(DEFAULT_DOCS)}\n`);
+  assert.equal(decideConfig(p.root).defaults, false); // the same list, but the developer wrote it
   p.ux('config.yaml', 'decide: maybe\n');
   assert.throws(() => decideConfig(p.root), /decide in .*config\.yaml: must be on or off/);
   p.ux('config.yaml', 'product_docs: [1, {a: b}]\n');
@@ -467,6 +491,17 @@ test('CLI docs and todo print JSON', (t) => {
   assert.deepEqual(out.findings.map((f) => f.id), ['F-01', 'F-02']);
   assert.deepEqual(out.docs, ['docs/prd.md']);
   assert.match(todo.stderr, /^decide: warning: product_docs: "nothing\.md" matches no document$/m);
+});
+
+test('CLI docs and todo: a product_docs entry that matches nothing warns even when it is one of the defaults; unset product_docs stays quiet', (t) => {
+  const p = cliProject(t);
+  const warning = 'product_docs: "SPEC.md" matches no document';
+  const docs = () => JSON.parse(run(['docs', p.root]).stdout);
+  assert.deepEqual(docs().warnings, []);
+  assert.equal(run(['todo', p.root, '--run', '2026-10-12']).stderr, '');
+  p.ux('config.yaml', 'product_docs: [SPEC.md, README.md]\n');
+  assert.deepEqual(docs(), { enabled: true, patterns: ['SPEC.md', 'README.md'], files: ['README.md'], warnings: [warning] });
+  assert.equal(run(['todo', p.root, '--run', '2026-10-12']).stderr, `decide: warning: ${warning}\n`);
 });
 
 test('CLI record: guards, normalized decisions.yaml, suggest segments in feedback.md, one JSON line; twice gives the same files', (t) => {
