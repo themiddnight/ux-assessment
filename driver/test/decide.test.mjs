@@ -204,7 +204,7 @@ test('guard: an id that is not in todo is dropped', () => {
 test('guard: a todo finding with no decision is added as ask', () => {
   const r = check([keep(), { id: 'F-02', decision: 'fix' }]);
   assert.deepEqual(byIdOf(r, 'F-03'), { id: 'F-03', decision: 'ask', reason: 'The decide agent returned no decision for this finding.',
-    sources: [], options: ['Fix it', 'Keep it as it is'], guard: 'no decision returned' });
+    sources: [], options: ['Fix it', 'Keep: leave it as it is'], guard: 'no decision returned' });
   assert.deepEqual(r.warnings, ['F-03: no decision returned']);
 });
 
@@ -212,7 +212,7 @@ test('guard: a decision that is not fix, keep or ask becomes ask', () => {
   const r = check([keep({ decision: 'maybe' }), { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
   assert.equal(byIdOf(r, 'F-01').decision, 'ask');
   assert.equal(byIdOf(r, 'F-01').guard, 'unknown decision "maybe": counted as ask');
-  assert.deepEqual(byIdOf(r, 'F-01').options, ['Fix it', 'Keep it as it is']);
+  assert.deepEqual(byIdOf(r, 'F-01').options, ['Fix it', 'Keep: leave it as it is']);
   assert.deepEqual(byIdOf(r, 'F-01').sources.length, 1); // the source is real; the developer sees it
 });
 
@@ -274,13 +274,39 @@ test('keep whose sources are all dropped becomes ask; a partly good list stays k
   assert.equal(byIdOf(r, 'F-01').guard, 'source without a path or quote dropped; source without a path or quote dropped; source without a path or quote dropped');
 });
 
-test('a fix or ask keeps the sources that check out and drops the others; ask without options stays as the agent wrote it', () => {
-  const r = check([{ id: 'F-01', decision: 'ask', reason: 'docs and code disagree', sources: [{ path: 'docs/prd.md', line: 3, quote: 'Export is for signed-in users' }, { path: 'src/a.js', line: 1, quote: 'nope' }] },
-    { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
+test('a fix or ask keeps the sources that check out and drops the others', () => {
+  const r = check([{ id: 'F-01', decision: 'ask', reason: 'docs and code disagree', options: ['A', 'B'],
+    sources: [{ path: 'docs/prd.md', line: 3, quote: 'Export is for signed-in users' }, { path: 'src/a.js', line: 1, quote: 'nope' }] },
+  { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
   assert.equal(byIdOf(r, 'F-01').decision, 'ask');
   assert.equal(byIdOf(r, 'F-01').sources.length, 1);
-  assert.deepEqual(byIdOf(r, 'F-01').options, []);
+  assert.deepEqual(byIdOf(r, 'F-01').options, ['A', 'B']);
   assert.equal(byIdOf(r, 'F-01').guard, 'source src/a.js dropped (quote not found in the file)');
+});
+
+const TWO_OPTIONS = ['Fix it', 'Keep: leave it as it is'];
+
+test('an ask with fewer than two options gets the default two, with a guard note; two or more stay as written', () => {
+  const r = check([{ id: 'F-01', decision: 'ask', reason: 'x' }, { id: 'F-02', decision: 'ask', reason: 'x', options: ['Only one', '  '] },
+    { id: 'F-03', decision: 'ask', reason: 'x', options: ['A', 'B', 'C'] }]);
+  const note = 'ask with fewer than two options: the default two were used';
+  assert.deepEqual(byIdOf(r, 'F-01').options, TWO_OPTIONS);
+  assert.equal(byIdOf(r, 'F-01').guard, note);
+  assert.deepEqual(byIdOf(r, 'F-02').options, TWO_OPTIONS);
+  assert.equal(byIdOf(r, 'F-02').guard, note);
+  assert.deepEqual(byIdOf(r, 'F-03').options, ['A', 'B', 'C']);
+  assert.equal(byIdOf(r, 'F-03').guard, null);
+  assert.deepEqual(r.warnings, [`F-01: ${note}`, `F-02: ${note}`]);
+});
+
+test('options: a one-key map from an unquoted "Keep: text" becomes the text; any other option that is not text is dropped with a note', () => {
+  const options = YAML.parse('- Fix it\n- Keep: saving stays manual\n- 42\n- [a, b]\n- {a: 1, b: 2}\n- null\n- Also text\n');
+  const r = check([{ id: 'F-01', decision: 'ask', reason: 'x', options }, { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
+  assert.deepEqual(byIdOf(r, 'F-01').options, ['Fix it', 'Keep: saving stays manual', 'Also text']);
+  assert.equal(byIdOf(r, 'F-01').guard, 'an option that is not text was dropped');
+  const few = check([{ id: 'F-01', decision: 'ask', reason: 'x', options: YAML.parse('- Keep: saving stays manual\n- 42\n') }, { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
+  assert.deepEqual(byIdOf(few, 'F-01').options, TWO_OPTIONS);
+  assert.equal(byIdOf(few, 'F-01').guard, 'an option that is not text was dropped; ask with fewer than two options: the default two were used');
 });
 
 test('a guard already in a checked file is kept when the same input produces none (record twice); one the agent wrote is discarded', () => {
@@ -550,7 +576,7 @@ test('CLI table prints the Decisions section from decisions.yaml and the local t
     '### Needs you (1)', '',
     '- F-02 · Jargon on landing — Just because.',
     '  - Fix it',
-    '  - Keep it as it is', '',
+    '  - Keep: leave it as it is', '',
     '### Kept (1)', '',
     '- F-01 · บันทึกแล้วไม่มีอะไรบอก — docs/prd.md:3 — The PRD says so.', '',
   ].join('\n'));

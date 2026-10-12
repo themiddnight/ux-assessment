@@ -18,8 +18,9 @@ export const DEFAULT_DOCS = ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PR
 const MAX_DOCS = 200;
 const DOC_EXT = /\.(md|mdx|txt|rst)$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git', '.ux-assessment']);
-const ASK_OPTIONS = ['Fix it', 'Keep it as it is'];
+const ASK_OPTIONS = ['Fix it', 'Keep: leave it as it is'];
 const GLOB = /\*/;
+const NOT_TEXT = 'an option that is not text was dropped';
 
 const isMap = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 const slashed = (p) => p.split(path.sep).join('/');
@@ -191,8 +192,18 @@ export function checkDecisions({ decisions, todo, readFile, relPath = (p) => p, 
       guards.push(Array.isArray(d.sources) && d.sources.length ? 'keep without a usable source: counted as ask' : 'keep without a source: counted as ask');
       decision = 'ask';
     }
-    const options = Array.isArray(d.options) ? d.options.map(flat).filter(Boolean) : [];
-    if (guards.length && decision === 'ask' && d.decision !== 'ask' && !options.length) options.push(...ASK_OPTIONS);
+    let options = [];
+    for (const o of Array.isArray(d.options) ? d.options : []) {
+      const pair = isMap(o) && Object.keys(o).length === 1 ? Object.entries(o)[0] : null; // an unquoted `- Keep: text` parses as a one-key map
+      const text = typeof o === 'string' ? o : typeof pair?.[1] === 'string' ? `${pair[0]}: ${pair[1]}` : null;
+      if (text != null) options.push(flat(text));
+      else if (!guards.includes(NOT_TEXT)) guards.push(NOT_TEXT);
+    }
+    options = options.filter(Boolean);
+    if (decision === 'ask' && options.length < 2) {
+      options = [...ASK_OPTIONS];
+      if (d.decision === 'ask') guards.push('ask with fewer than two options: the default two were used');
+    }
     if (guards.length) warnings.push(`${id}: ${guards.join('; ')}`);
     return { id, decision, reason: flat(d.reason), sources, options, guard: guards.length ? guards.join('; ') : checked && typeof d.guard === 'string' ? d.guard : null };
   });
