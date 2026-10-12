@@ -164,8 +164,9 @@ reply (agents/triage.md); the orchestrator saves it as `report.md`.
 
 Append a section for this run to `<project>/.ux-assessment/feedback.md` (create it with the heading
 `# Finding labels` if missing; never change other runs' sections). Re-triage of a run replaces
-that run's section, keeping every label, note and `suggest:` part already filled in for a finding
-with the same root cause. One line per `ux` finding that is not
+that run's section, keeping every label and note already filled in for a finding with the same
+root cause. Leave out an earlier `suggest:` part: the decide step runs again after triage and
+writes it for the new findings. One line per `ux` finding that is not
 suppressed:
 
 ```markdown
@@ -174,7 +175,7 @@ suppressed:
 ```
 
 The title on the line is `title_local`: the developer reads this file. The decide step later adds
-`— suggest: …` before `— label:` (`knowledge/decide.md`).
+`— suggest: …` before `— label:` (written by `driver/decide.mjs record`).
 
 The developer labels each line later: `valid`, `not real` (with a reason in the note) or
 `won't fix`.

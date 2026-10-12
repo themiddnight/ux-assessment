@@ -110,7 +110,8 @@ name as the only line of `<project>/.ux-assessment/active-run` (create `.ux-asse
 needed). In the full flow, do this at the start of step 2, once step 1 has confirmed the app is
 running; New run and Start over already have the app confirmed, so they write it here. Step 8 uses
 this folder. The token hook uses the file to assign this conversation and its
-agents to the run. **Re-run triage:** write the existing run folder's name there before step 9.
+agents to the run. **Re-run triage:** write the existing run folder's name there before step 9, and delete that
+run's `decisions.yaml`: the findings are about to change, and step 9b decides them again.
 
 ## 1. A running app
 
@@ -283,6 +284,9 @@ known). That file is the one place the steps are written. They end with
 `node "$PLUGIN/driver/decide.mjs" record <project> --run <name>`, a ledger sync and the
 `## Decisions` section of `report.md`. When its step 2 finds `enabled: false`, this step is
 skipped, and steps 10 and 11 work without decisions. It asks nothing, so it runs unattended too.
+A "Stop" in that file ends step 9b only: go on to step 10 either way. Afterwards run
+`node "$PLUGIN/driver/usage.mjs" report <run folder>` again and replace the block under
+`### Tokens` in `report.md` with its output, so the decide agent's tokens are in the report.
 
 ## 10. Tell the user
 
@@ -329,7 +333,8 @@ never writes a label and never edits the charter. Then, in this order:
 2. **The `fix` and `keep` findings**, one card for all of them: show the two lists (to fix; kept,
    each with its source as `path:line`), then **Accept all** (recommended) · **Review one by one**.
    - **Accept all** writes nothing to `feedback.md`: the lines keep `label: ?`, and the agent's
-     decisions stand in the ledger as `by: agent`.
+     decisions stand in the ledger as `by: agent`. Because nothing is written, this card comes
+     back on a later visit while those lines are still `?`; say so once.
    - **Review one by one** walks them with AskUserQuestion, at most 4 findings per card, one
      question each: `F-03 · <title_local>` and a one-line what happened; options **Valid** · **Not
      real** · **Known, won't fix** (free text via "Other" goes into the note; ask "why not real?" in
@@ -346,8 +351,8 @@ Then run `ledger.mjs sync <project>` so the labels reach the ledger.
 
 **Intended behaviors.** Two offers, each **Add … to Intended behaviors** · **No**, appending to the
 charter's `## Intended behaviors` (template in `knowledge/charter.md`; add the heading if missing):
-- One card for all `keep` decisions that have a source and that the developer did not label
-  `valid` or `not real`: **Add these to Intended behaviors** · **No**. Each added line is
+- One card for all `keep` decisions that have a source, that the developer did not label
+  `valid` or `not real`, and that have no `decide F-07` line for their id in the charter yet: **Add these to Intended behaviors** · **No**. Each added line is
   `- <behavior in user terms> — why: <the decision's reason> — source: decide F-07 (docs/prd.md:42)`.
 - When a note says the behavior is on purpose (by design, intended, leads to sign-up, …), ask once
   per such finding. The line is

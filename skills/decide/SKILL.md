@@ -23,7 +23,8 @@ finding: `fix`, `keep` or `ask`. The rules are in `$PLUGIN/knowledge/decide.md`.
 proposal: it changes no label and no ledger status, and a `keep` hides nothing. Nothing this step
 reads or writes ever goes into a persona briefing.
 
-This skill asks no question, so it runs the same way unattended.
+This skill asks no question, so it runs the same way unattended. "Stop" below ends this skill
+only: when the main skill's step 9b sent you here, go back to it and continue with its step 10.
 
 ## Steps
 
@@ -59,7 +60,8 @@ This skill asks no question, so it runs the same way unattended.
    the findings to decide and the documents. When `findings` is empty, tell the user that nothing
    is left to decide (every finding of this run already has their label, or the run has none).
    Stop.
-6. **Dispatch.** One Agent call: `subagent_type: "ux-assessment:decide"`, `run_in_background: false`.
+6. **Dispatch.** First delete `<run folder>/decisions.yaml` if it exists: it belongs to an earlier
+   pass, and `record` must never check an old file in place of a new one. Then one Agent call: `subagent_type: "ux-assessment:decide"`, `run_in_background: false`.
    The prompt gives the project root, `$PLUGIN` (absolute), the run folder (absolute), the `todo`
    output verbatim, the report language (the user's), the path of `<project>/.ux-assessment/charter.md` and the path of
    `$PLUGIN/knowledge/decide.md`. Model: the `claude decide` line of
@@ -71,8 +73,13 @@ This skill asks no question, so it runs the same way unattended.
 7. **Record.** Run `node "$PLUGIN/driver/decide.mjs" record <project> --run <name>`. It checks every
    quote against its file, rewrites `decisions.yaml` and adds a `suggest:` part to this run's lines
    in `feedback.md`. Show the user each stderr warning. Then read `decisions.yaml`: every decision
-   whose `guard` is not `null` was changed by the check. Name each of those findings to the user
+   whose `guard` is not `null` had something dropped or changed by the check (a source that was
+   not found, a `keep` counted as `ask`). Name each of those findings to the user
    with what the guard says, in plain words.
+   If `record` fails (no `decisions.yaml`, or one it cannot read), dispatch the agent once more
+   with the same prompt plus the error line, and run `record` again. If it fails a second time,
+   tell the user that the decide step did not finish and why, delete the unreadable file, and
+   stop: the findings stay undecided.
 8. **Sync.** Run `ledger.mjs sync <project>` again, so the decisions reach the ledger.
 9. **Report.** Run `node "$PLUGIN/driver/decide.mjs" table <project> --run <name>`. In
    `<run folder>/report.md`, the section `## Decisions` holds that output, verbatim. If the report

@@ -148,5 +148,6 @@ decisions:
   not choose it.
 - `options`: for `ask` only, two or three choices, one line each, each a thing the developer can
   do. When leaving the app as it is is one of them, write it last and start it with `Keep:`.
+  Put every option in double quotes: an unquoted `Keep: …` is read as a map, not as text.
   Empty for `fix` and `keep`.
 - `guard`: always `null`. `record` sets it when it changed your decision.

@@ -144,8 +144,8 @@ stay under `.ux-assessment/` with owner-only permissions and outside Git.
      once it is saved under `.ux-assessment/docs/`: attended, offer to save it; unattended, save
      nothing and say it was not used.
    - Run `ledger.mjs sync <project>`, then `node "$PLUGIN/driver/decide.mjs" todo <project> --run <name>`.
-     No findings: say so and stop.
-   - Read `$PLUGIN/knowledge/decide.md` and follow it exactly: read the product documents once,
+     No findings: say so and go on to the labels offer of step 7.
+   - Delete an earlier `<run>/decisions.yaml`. Read `$PLUGIN/knowledge/decide.md` and follow it exactly: read the product documents once,
      the findings and the code around each `code_pointer`, and write `<run>/decisions.yaml`.
    - Run `node "$PLUGIN/driver/decide.mjs" record <project> --run <name>`. Show its warnings and
      name each finding whose `guard` is set. Run `ledger.mjs sync <project>` again.

@@ -17,7 +17,8 @@ Talk to the user in **their** language, without UX vocabulary. The project is th
 directory. Wherever you tell the user about a finding, write its id with its title:
 `F-03 · <title_local>`. Never an id alone.
 
-This skill is read-only. It changes no label and no decision, and it asks no question, so it runs
+This skill changes no label and no decision (the sync in step 2 only brings `ledger.yaml` up to
+date with the run folders and `feedback.md`), and it asks no question, so it runs
 the same way unattended.
 
 ## Steps
@@ -34,8 +35,11 @@ the same way unattended.
    the status words and the last line into the user's language. Never change an id, a title, a
    path, a link or a count, and never drop or reorder a row.
 5. **Next step.** End with the one step that fits what the board shows, first match wins:
-   - rows under "needs you": `/ux-assessment` → Label findings, where they answer those;
-   - rows that are undecided: `/ux-assessment:decide`;
+   - rows under "needs you" whose decision is `ask`: `/ux-assessment` → Label findings, where
+     they answer those; rows there whose status says the screen changed: Verify fixes, which
+     checks them again;
+   - rows that are undecided: Decide on the run in their Last seen column
+     (`/ux-assessment:decide <run folder name>`; without a name it takes the latest run only);
    - rows to fix: fix them, then `/ux-assessment` → Verify fixes;
    - rows awaiting a check: Verify fixes once more, because a finding counts as fixed only after
      two separate checks did not see it;

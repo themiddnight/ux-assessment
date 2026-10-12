@@ -156,7 +156,7 @@ browser:
 
 | command | what it does |
 |---|---|
-| `/ux-assessment:result` | Shows every finding in one table, grouped by what it needs: your answer, a fix, nothing (kept), a decision, a second check. It changes nothing. |
+| `/ux-assessment:result` | Shows every finding in one table, grouped by what it needs: your answer, a fix, nothing (kept), a decision, a second check. It changes no label and no decision. |
 | `/ux-assessment:decide` | Proposes fix, keep or ask for each finding of the last run, or of the run you name. It already runs after every test run. |
 | `/ux-assessment:settings` | Shows the settings and changes the product documents, the decide step and the models. |
 
