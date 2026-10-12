@@ -148,8 +148,31 @@ tokens are recorded):
 - **Codex:** ask it to run `ux-assessment` against the running local URL.
 
 On a project that already has `.ux-assessment/`, it offers a menu: New run, Label findings, Verify
-fixes, Re-run triage, Start over. There are three modes: Quick, Guided (the default) and Expert (for
-people who would rather edit the files directly).
+fixes, Re-run triage, Start over, Show results, Decide, Settings. There are three modes: Quick,
+Guided (the default) and Expert (for people who would rather edit the files directly).
+
+Three of the menu entries are also commands of their own on Claude Code. None of them opens a
+browser:
+
+| command | what it does |
+|---|---|
+| `/ux-assessment:result` | Shows every finding in one table, grouped by what it needs: your answer, a fix, nothing (kept), a decision, a second check. It changes nothing. |
+| `/ux-assessment:decide` | Proposes fix, keep or ask for each finding of the last run, or of the run you name. It already runs after every test run. |
+| `/ux-assessment:settings` | Shows the settings and changes the product documents, the decide step and the models. |
+
+On Codex, ask for the same thing by name ("show the results", "decide the findings", "settings").
+To see the table without an agent, run `node driver/ledger.mjs board <app repo>` from the checkout.
+
+Two optional keys in `.ux-assessment/config.yaml` steer the decide step:
+
+```yaml
+product_docs: [docs/, SPEC.md]   # files, folders or globs, relative to the app repo
+decide: off                      # on (the default) or off: off skips the step after a run
+```
+
+Without `product_docs` it reads `AGENTS.md`, `CLAUDE.md`, `README*`, `SPEC.md`, `PRD*` and
+`docs/**` (files ending in `.md`, `.mdx`, `.txt` or `.rst`, at most 200).
+`node driver/decide.mjs docs <app repo>` lists the documents it would read.
 
 ## How it works
 
@@ -158,7 +181,7 @@ The planner (your main session) sees your code; the personas never do.
 ### Pipeline
 
 state → app → recon → pack → intake → harness config → personas → plan → run (parallel) → triage →
-report → labels.
+decide → report → labels.
 
 - **State:** checks for an earlier `.ux-assessment/` and offers the menu.
 - **App:** confirms the running URL.
@@ -170,8 +193,9 @@ report → labels.
 - **Plan:** matches personas to scenarios and estimates the tokens.
 - **Run:** runs the personas in parallel, each in its own browser.
 - **Triage:** turns what they hit into findings with evidence.
+- **Decide:** proposes, per finding, to fix it, keep it or ask you.
 - **Report:** writes the report, fix tasks and a kit for testing with real people.
-- **Labels:** you mark which findings were real.
+- **Labels:** you answer what the decide step could not, and mark which findings were real.
 
 ### Knowledge isolation
 
@@ -197,8 +221,18 @@ file pickers, page errors). It groups what the personas hit into findings, each 
 evidence, and writes `report.md`. When the charter lists a behaviour as intended and it costs no
 goal, triage marks it "working as intended" instead of reporting it.
 
-You then label findings real or not in `feedback.md`, and precision is computed per run. Across the
-four dogfood apps, 33 of 36 findings were labelled real.
+After triage, a decide agent reads your product documents and the code and proposes one decision
+per finding: `fix`, `keep` (a document or the code says the behaviour is on purpose, and the
+persona still reached its goal) or `ask` (it is on purpose but cost a persona the goal, the
+documents and the code disagree, or the possible fixes are product choices). A `keep` must quote
+the line it rests on; the driver checks the quote against the file and turns an unsupported
+`keep` into `ask`. The decisions are proposals. A `keep` hides nothing, and your label always
+wins. The decide step has not been run on a real app yet.
+
+You then label findings real or not in `feedback.md`, and precision is computed per run from your
+labels only. The label step asks you about the `ask` findings first, then lets you accept the rest
+in one answer or review them one by one. Across the four dogfood apps, 33 of 36 findings were
+labelled real; those labels were all made by hand, before the decide step existed.
 
 ### Verify fixes
 
@@ -224,8 +258,9 @@ in-app timers.
 | `driver/inject.js` | Init script: an audio tap, plus a visible stand-in for OS file pickers backed by OPFS |
 | `driver/mcp.mjs` | stdio MCP server `browser`. Persona tools are `act` (one step = one call; returns a screenshot) and `end_session`. Harness tools are `harness_start`, `harness_eval`, `harness_signals`, `harness_save_state` and `harness_stop` |
 | `driver/persona-bridge.mjs`, `driver/codex-runner.mjs` | Short-lived two-tool MCP endpoint and isolated Codex CLI runner for one persona or verifier |
-| `driver/ledger.mjs`, `driver/verify.mjs` | Cross-run finding ledger (`.ux-assessment/ledger.yaml`: identity, history, status) and verify-run helpers (`record` verifier replies into `verify.yaml`, `check-state` for saved logins) |
+| `driver/ledger.mjs`, `driver/verify.mjs` | Cross-run finding ledger (`.ux-assessment/ledger.yaml`: identity, history, status, decision; `board` prints the results table) and verify-run helpers (`record` verifier replies into `verify.yaml`, `check-state` for saved logins) |
 | `agents/verifier.md` | Rechecks one earlier finding in a browser and returns a verdict (verify-only mode) |
+| `driver/decide.mjs`, `agents/decide.md` | The decide step (SPEC D35): the agent proposes fix, keep or ask per finding from the product documents and the source; the script resolves the documents (`docs`), lists the findings to decide (`todo`), checks every quoted source (`record`) and prints the report's Decisions section (`table`) |
 | `driver/png-diff.mjs` | `node driver/png-diff.mjs a.png b.png` — pixel diff of two screenshots with the harness's thresholds, for triage |
 | `driver/probe.mjs` | `url`, `now`, `fetch` and `deps` for the skills and recon, in place of the curl and date commands (the same on every OS) |
 | `driver/expectations.mjs` | `node driver/expectations.mjs <run folder>` — what each persona expected before an action against what happened, one pattern per expectation, for triage (SPEC D34) |
@@ -235,12 +270,13 @@ in-app timers.
 | `agents/persona.md` | Shared persona instructions. Claude grants only `act` and `end_session`; Codex runs with its built-in tools off, and on macOS also inside sandbox-exec |
 | `agents/recon.md`, `agents/triage.md` | Planner-side agents that write the app profile and the report |
 | `skills/ux-assessment/SKILL.md`, `codex/skills/ux-assessment/SKILL.md` | Shared entry and Codex workflow adapter |
-| `knowledge/` | Plain-markdown knowledge: intake question bank, persona schema and briefing, charter template and harness-config mapping, triage rules, and curated domain packs in `knowledge/packs/` (first: `creative-tool.md`) |
+| `skills/decide/`, `skills/result/`, `skills/settings/` | The three commands: decide a run, show the results table, show and change the settings |
+| `knowledge/` | Plain-markdown knowledge: intake question bank, persona schema and briefing, charter template and harness-config mapping, triage rules, decide rules, and curated domain packs in `knowledge/packs/` (first: `creative-tool.md`) |
 
 ## Models per role
 
 On Claude Code, personas and verifiers use `sonnet`, recon uses `opus` (`sonnet` at quick depth), and
-triage uses `opus`. On Codex, each role maps to a model and a reasoning effort. You can override any
+triage and decide use `opus`. On Codex, each role maps to a model and a reasoning effort. You can override any
 role per project in `.ux-assessment/config.yaml` under `models`. A cheaper persona model is opt-in,
 and choosing one prints a warning: "cheaper, quality unmeasured: persona mistakes turn into false
 findings". To see the map for a project, run `node driver/models.mjs show <app repo>`. For a project
@@ -251,6 +287,7 @@ claude persona: sonnet (default)
 claude verifier: sonnet (default)
 claude recon: opus (default); quick depth: sonnet
 claude triage: opus (default)
+claude decide: opus (default)
 claude orchestrator: the session model (default)
 codex persona: gpt-6-sol medium (default)
 codex verifier: gpt-6-sol medium (default)
@@ -327,13 +364,13 @@ Everything a run writes is in `<app repo>/.ux-assessment/`:
 
 ```
 .ux-assessment/
-├── config.yaml        # adapter, max_parallel, models, retention, mode defaults
+├── config.yaml        # adapter, max_parallel, models, retention, mode defaults, product_docs, decide
 ├── app-profile.md     # planner-only
 ├── charter.md         # goals, success criteria, safety rules, environment shims
 ├── personas.md        # persona cards
 ├── packs/             # project-specific domain packs
 ├── plans/             # persona × scenario matrix + token estimate
-├── runs/              # one folder per run: report, fix tasks, logs, screenshots
+├── runs/              # one folder per run: report, decisions, fix tasks, logs, screenshots
 ├── ledger.yaml        # cross-run finding identity, history and status
 ├── feedback.md        # finding labels
 ├── usage.jsonl        # token records
@@ -357,7 +394,7 @@ Keep these out of git:
 .ux-assessment/codex-self-check.json
 ```
 
-The last line is a per-machine record. Commit the rest: `report.md`, `ledger.yaml`, `feedback.md`,
+The last line is a per-machine record. Commit the rest: `report.md`, `decisions.yaml`, `ledger.yaml`, `feedback.md`,
 the charter and the personas. Test credentials for returning-user personas go in
 `.ux-assessment/secrets.local.yaml`, and saved logins in `.ux-assessment/state/`.
 
