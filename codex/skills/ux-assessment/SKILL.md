@@ -11,9 +11,11 @@ plugin root is three directories above this file's real path; call it `$PLUGIN`.
 it is not a shell variable (PowerShell would expand it to nothing). The project
 is the app repository in the user's request. Write all assessment artifacts to
 `<project>/.ux-assessment/`. Read shared knowledge only when needed:
-`$PLUGIN/knowledge/{intake,charter,personas,triage}.md` and the selected
+`$PLUGIN/knowledge/{intake,charter,personas,triage,decide}.md` and the selected
 `$PLUGIN/knowledge/packs/*.md`. Use `$PLUGIN/SPEC.md` for the data contract.
 Communicate in the user's language; internal artifacts stay in English.
+Wherever you tell the user about a finding, write its id with its title:
+`F-03 · <title_local>` (`title` when a finding has no `title_local`). Never an id alone.
 
 ## Isolation rule
 
@@ -36,8 +38,12 @@ stay under `.ux-assessment/` with owner-only permissions and outside Git.
 ## Workflow
 
 1. **State and URL.** Check for an existing `.ux-assessment/`. Offer New run,
-   Label findings, Verify fixes, Re-run triage, or Start over when applicable (unattended:
-   `verify` in the request selects Verify fixes). Choose Quick,
+   Label findings, Verify fixes, Re-run triage, Start over, Show results, Decide (step 8), or
+   Settings when applicable (unattended: `verify` in the request selects Verify fixes, `decide`
+   Decide, `result` Show results; Label findings and Settings need a person).
+   Show results: read `$PLUGIN/skills/result/SKILL.md` and follow it; it runs `ledger.mjs sync`,
+   then shows the table of `node "$PLUGIN/driver/ledger.mjs" board <project>`. Settings: read
+   `$PLUGIN/skills/settings/SKILL.md` and follow it with Codex questions. Choose Quick,
    Guided, or Expert with the user; Guided is the attended default. Confirm a
    running local app URL. The Codex persona runner currently supports only
    `localhost` or `127.0.0.1`. Do not start a server in unattended mode. In
@@ -126,9 +132,27 @@ stay under `.ux-assessment/` with owner-only permissions and outside Git.
    `node "$PLUGIN/driver/usage.mjs" report <run folder>`, appended to `report.md` under
    `### Tokens`. Offer to add the run logs, screenshots, state, and
    `secrets.local.yaml` to the app's `.gitignore`; do not edit it unasked.
-   Offer finding labels in attended mode and apply the label rules in the
-   existing feedback file, including the Intended behaviors offer (Claude skill step 11).
-8. **Verify fixes.** Follow section V of the Claude skill (V1–V5) with these Codex differences.
+   After step 8, offer finding labels in attended mode and apply the label rules of the Claude
+   skill's step 11: the `ask` findings first, then Accept all or Review one by one, then the
+   Intended behaviors offers. An unattended run writes no label and never edits the charter.
+8. **Decide.** After triage, propose `fix`, `keep` or `ask` for each finding (SPEC D35). Codex has
+   no decide subagent: the main session does the agent's work. The run, the `decide: off` rule and
+   the report section are as in `$PLUGIN/skills/decide/SKILL.md`; in short:
+   - Run `node "$PLUGIN/driver/decide.mjs" docs <project>`. On `enabled: false`, skip this step
+     unless the user asked for Decide. Show its warnings.
+   - Run `ledger.mjs sync <project>`, then `node "$PLUGIN/driver/decide.mjs" todo <project> --run <name>`.
+     No findings: say so and stop.
+   - Read `$PLUGIN/knowledge/decide.md` and follow it exactly: read the product documents once,
+     the findings and the code around each `code_pointer`, and write `<run>/decisions.yaml`.
+   - Run `node "$PLUGIN/driver/decide.mjs" record <project> --run <name>`. Show its warnings and
+     name each finding whose `guard` is set. Run `ledger.mjs sync <project>` again.
+   - Put the output of `node "$PLUGIN/driver/decide.mjs" table <project> --run <name>`, verbatim,
+     in `report.md` as the `## Decisions` section, replacing an earlier one.
+   - Tell the user the count per decision and each `ask` finding in one line.
+
+   This step asks nothing, so it runs unattended too. Nothing it reads or writes reaches a
+   persona briefing.
+9. **Verify fixes.** Follow section V of the Claude skill (V1–V5) with these Codex differences.
    V3 runs `usage.mjs estimate --harness codex --verify <n>`. V4 needs no `active-run` file: the
    runner takes the run from the session folder.
    Run each finding through the runner with `role: "verifier"`, written to a private `0600` job

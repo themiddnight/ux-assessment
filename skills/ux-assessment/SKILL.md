@@ -31,7 +31,7 @@ and follow that workflow. The steps below use Claude Code agents, questions,
 and MCP tool names. On Claude Code, continue below.
 
 Pipeline: **state → app → recon → pack → intake → harness config → personas → plan → run
-(parallel) → triage → report → labels.** Knowledge files:
+(parallel) → triage → decide → report → labels.** Knowledge files:
 `$PLUGIN/knowledge/{intake,charter,personas,triage}.md` and `$PLUGIN/knowledge/packs/*.md`. Read
 each one when its step comes, not all up front.
 
@@ -39,11 +39,16 @@ Talk to the user in **their** language, without UX vocabulary (SPEC §1). Intern
 Everything lives in `<project>/.ux-assessment/` (the project = the current working directory).
 Browser tools are `mcp__plugin_ux-assessment_browser__<tool>` (below: just `<tool>`).
 
+**The id rule.** Wherever you tell the user about a finding (a message, a question card, a report
+section you write), write its id with its title: `F-03 · <title_local>`. `title_local` is the
+title in the report language, from `findings.yaml` or the ledger; use `title` when a finding has
+none. Never an id alone.
+
 **Models per role** (SPEC D30). `node "$PLUGIN/driver/models.mjs" show <project>` prints the model
 for each role from `.ux-assessment/config.yaml` (or the defaults) and prints warnings on stderr.
-For each `ux-assessment:persona`, `verifier`, `recon` and `triage` Agent call, pass `model` = that
+For each `ux-assessment:persona`, `verifier`, `recon`, `triage` and `decide` Agent call, pass `model` = that
 role's `claude` line, and leave it out when it equals the agent's own model (persona and verifier
-`sonnet`, recon and triage `opus`). The Agent `model` parameter takes `sonnet`, `opus`, `haiku` or `fable`.
+`sonnet`, recon, triage and decide `opus`). The Agent `model` parameter takes `sonnet`, `opus`, `haiku` or `fable`.
 For any other value, including "the session model", leave it out and tell the user that the
 agent's own model was used.
 
@@ -83,9 +88,16 @@ changes unless a step says so. Unattended hard rules:
 **Label findings** (step 11) ·
 **Verify fixes** (section V; only when some `runs/*/findings.yaml` exists) ·
 **Re-run triage** on the last run (step 9) · **Start over** (redo
-steps 2–6, overwriting app-profile, charter and personas; keep `runs/` and `feedback.md`).
+steps 2–6, overwriting app-profile, charter and personas; keep `runs/` and `feedback.md`) ·
+**Show results** (the table of `node "$PLUGIN/driver/ledger.mjs" board <project>`; read
+`$PLUGIN/skills/result/SKILL.md` and follow it) ·
+**Decide** on the last run (read `$PLUGIN/skills/decide/SKILL.md` and follow it; only when some
+`runs/*/findings.yaml` exists) ·
+**Settings** (read `$PLUGIN/skills/settings/SKILL.md` and follow it).
+Those three files hold the steps; `$PLUGIN` is already known, so skip their first paragraph.
 Unattended: New run; Re-run triage when the arguments say `triage`; Verify fixes when they say
-`verify`. Label findings needs a person — say so and stop.
+`verify`; Decide when they say `decide`; Show results when they say `result`. Label findings and
+Settings need a person — say so and stop.
 
 **Mode** (only when intake will run). From the arguments (`quick`, `guided`, `expert`), else ask:
 **Guided** (recommended; six short rounds, 5–7 personas) · **Quick** (one or two cards, 3
@@ -143,7 +155,12 @@ max_parallel: 3          # 1 when server-side state is shared (step 8)
 mode: guided             # quick | guided | expert; add `unattended: true` when it is on
 cap: 30
 retention_runs: 5
+# product_docs: [docs/, SPEC.md]   # what the decide step reads (step 9b); unset = the default list
+# decide: off            # on | off; default on
 ```
+
+When `config.yaml` already exists (Start over), keep its `product_docs`, `decide` and `models`
+lines: the user set them (`$PLUGIN/skills/settings/SKILL.md`).
 
 ## 5. Harness config
 
@@ -258,10 +275,21 @@ does not let subagents write report files): save that reply verbatim, as it is, 
 under a `### Tokens` heading at the end of its Run facts section ("not measured" is an answer too). The orchestrator figure is recorded only when the conversation's turn ends, so it may be missing here; say the user can run `node "$PLUGIN/driver/usage.mjs" report <run folder>` again afterwards for it.
 Then run `ledger.mjs sync <project>` again.
 
+## 9b. Decide
+
+An agent proposes, per finding, whether to fix it, keep it or ask the developer (SPEC D35). Read
+`$PLUGIN/skills/decide/SKILL.md` and follow its steps for this run folder (`$PLUGIN` is already
+known). That file is the one place the steps are written. They end with
+`node "$PLUGIN/driver/decide.mjs" record <project> --run <name>`, a ledger sync and the
+`## Decisions` section of `report.md`. When its step 2 finds `enabled: false`, this step is
+skipped, and steps 10 and 11 work without decisions. It asks nothing, so it runs unattended too.
+
 ## 10. Tell the user
 
-In their language: the top findings (one line each, with severity), where the report is, what was
-not tested, and the tokens used per model (the `### Tokens` table). Say that the orchestrator row
+In their language: the top findings (one line each: `F-03 · <title_local>`, with severity), the
+count per decision (to fix, kept, needs their answer) with each `ask` finding in one line, where
+the report is, what was not tested, and the tokens used per model (the `### Tokens` table). Say
+that the orchestrator row
 keeps growing until this conversation ends, and that the plugin reports tokens, not a share of a
 subscription. Then **offer** (ask, do not edit) to add to
 `.gitignore` — unattended: never edit it, list the lines in the final message instead:
@@ -279,22 +307,52 @@ subscription. Then **offer** (ask, do not edit) to add to
 
 Finally, attended: offer **Label findings now** · **Later**.
 
-## 11. Label findings (SPEC D15, minimal)
+## 11. Label findings (SPEC D15, D35)
 
-Read `.ux-assessment/feedback.md` and pick the lines with `label: ?`. First run `node "$PLUGIN/driver/ledger.mjs" status <project>` and show each finding's ledger status next to its
-title, in plain words (knowledge/verify.md → Statuses), for example "F-03 … (not seen this
-time)". Walk them with AskUserQuestion,
-at most 4 findings per card, one question each: the finding's title and a one-line what happened;
-options **Valid** · **Not real** · **Known, won't fix** (free text via "Other" goes into the note; ask
-"why not real?" in the note for Not real). Write each line back as
-`- F-03 <title> — label: valid|not real|won't fix — note: <text>`. Then report, per run,
-precision = valid / (valid + not real), and that won't-fix titles will be suppressed next time.
+Read `.ux-assessment/feedback.md` and pick the lines with `label: ?`. First run
+`node "$PLUGIN/driver/ledger.mjs" status <project>` and show each finding's ledger status next to
+its title, in plain words (knowledge/verify.md → Statuses), for example
+"F-03 · <title_local> (not seen this time)". Read each run's `decisions.yaml` for the agent's
+decision on those findings. This step needs a person: an unattended run never reaches it, so it
+never writes a label and never edits the charter. Then, in this order:
+
+1. **The `ask` findings**, one question each, at most 4 per card: `F-03 · <title_local>`, a
+   one-line what happened and the agent's `reason`. The choices are the agent's `options`, then
+   **Not real**. The answer writes a label:
+   - an option that changes the app → `label: valid`, with the chosen option as the note;
+   - an option that starts with `Keep:` (the app stays as it is) → `label: won't fix`, with the
+     chosen option as the note;
+   - Not real → `label: not real`, and ask "why not real?" for the note;
+   - free text via "Other" → the label that fits what they wrote, by the same three rules, with
+     their text as the note. When it fits none, leave `label: ?` and write their text as the note.
+2. **The `fix` and `keep` findings**, one card for all of them: show the two lists (to fix; kept,
+   each with its source as `path:line`), then **Accept all** (recommended) · **Review one by one**.
+   - **Accept all** writes nothing to `feedback.md`: the lines keep `label: ?`, and the agent's
+     decisions stand in the ledger as `by: agent`.
+   - **Review one by one** walks them with AskUserQuestion, at most 4 findings per card, one
+     question each: `F-03 · <title_local>` and a one-line what happened; options **Valid** · **Not
+     real** · **Known, won't fix** (free text via "Other" goes into the note; ask "why not real?" in
+     the note for Not real). The recommended option is the agent's decision: Valid for `fix`,
+     Known, won't fix for `keep`. Each answer writes a label.
+3. **Findings with no decision** (step 9b was skipped, or the run is older than the decide step):
+   Review one by one, with no recommended option.
+
+Write each label back by changing only the `label:` and `note:` parts of its line; keep the title
+and any `suggest:` part: `- F-03 <title_local> — suggest: … — label: valid|not real|won't fix — note: <text>`.
+Then report, per run, precision = valid / (valid + not real), counted from the developer's labels
+only (an accepted decision is not a label), and that won't-fix titles will be suppressed next time.
 Then run `ledger.mjs sync <project>` so the labels reach the ledger.
-When a note says the behavior is on purpose (by design, intended, leads to sign-up, …), ask once per
-such finding: **Add to Intended behaviors** · **No**. On yes, append a line to the charter's
-`## Intended behaviors` (template in `knowledge/charter.md`; add the heading if missing):
-`- <behavior in user terms> — why: <the note> — source: label F-07 (run <name>)`. Later triage then
-lists it as working as intended unless it costs a persona the goal.
+
+**Intended behaviors.** Two offers, each **Add … to Intended behaviors** · **No**, appending to the
+charter's `## Intended behaviors` (template in `knowledge/charter.md`; add the heading if missing):
+- One card for all `keep` decisions that have a source and that the developer did not label
+  `valid` or `not real`: **Add these to Intended behaviors** · **No**. Each added line is
+  `- <behavior in user terms> — why: <the decision's reason> — source: decide F-07 (docs/prd.md:42)`.
+- When a note says the behavior is on purpose (by design, intended, leads to sign-up, …), ask once
+  per such finding. The line is
+  `- <behavior in user terms> — why: <the note> — source: label F-07 (run <name>)`.
+
+Later triage then lists such a behavior as working as intended unless it costs a persona the goal.
 Labels persist across runs: a later `?` does not clear them; to undo "not real" or "won't fix", write `valid`.
 
 ## V. Verify fixes (SPEC D15 verify-only)
@@ -312,7 +370,7 @@ example an unknown label in feedback.md), tell the user what it means before goi
 **V2. Pick.** `node "$PLUGIN/driver/ledger.mjs" open <project>` prints the findings to check as JSON.
 If it prints none, say so and stop.
 - Attended, ask: **All open** (recommended) · **High and medium only** · **Pick**. For Pick, use
-  multi-select by title, at most 4 per card; Pick may also offer the `needs_review` findings
+  multi-select by `F-03 · <title_local>`, at most 4 per card; Pick may also offer the `needs_review` findings
   (`ledger.mjs open <project> --needs-review` lists them too).
 - Unattended: all open.
 
@@ -350,7 +408,8 @@ line of `<project>/.ux-assessment/active-run`. Take the findings in batches of
    `ledger.mjs table <project> --run <run folder name, e.g. 2026-09-29-verify>`.
 3. Write `<run>/verify-report.md` with these sections:
    - **Summary** first, in the user's language: how many findings were checked, the count per
-     verdict, and each status change in plain words.
+     verdict, and each status change in plain words. It names each finding as
+     `F-03 · <title_local>`, and so do the two sections below.
    - The table, verbatim.
    - **Needs a look**: the `changed` findings, with their screenshot.
    - **Could not check**: the `unreachable` and guarded findings, with the reason.
