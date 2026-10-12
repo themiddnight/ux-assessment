@@ -266,6 +266,17 @@ test('a quote that occurs twice keeps the stated line when it is one of them, el
   assert.equal(run(undefined), 2);
 });
 
+test('a quote that matches on every line of a 60,000-line file is checked in linear time', () => {
+  const text = Array.from({ length: 60000 }, (_, i) => `line ${i} of the product document`).join('\n');
+  const started = Date.now();
+  const r = checkDecisions({ decisions: [{ id: 'F-01', decision: 'keep', sources: [{ path: 'big.md', line: 59999, quote: 'of the product' }] }],
+    todo: [{ id: 'F-01' }], readFile: () => text });
+  assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+  assert.equal(r.decisions[0].sources[0].line, 59999);
+  assert.equal(checkDecisions({ decisions: [{ id: 'F-01', decision: 'keep', sources: [{ path: 'big.md', line: 1, quote: 'line 30000 of\nthe  product' }] }],
+    todo: [{ id: 'F-01' }], readFile: () => text }).decisions[0].sources[0].line, 30001);
+});
+
 test('keep whose sources are all dropped becomes ask; a partly good list stays keep; a source with no path or quote is dropped', () => {
   const r = check([keep({ sources: [{ path: 'docs/prd.md' }, 'text', { quote: 'q' }, { path: 'docs/prd.md', line: 3, quote: 'Export is for signed-in users' }] }),
     { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);

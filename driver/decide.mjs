@@ -135,17 +135,24 @@ export function todoFindings(project, run) {
 
 const flat = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
-/** 1-based lines where the quote starts, comparing with every run of whitespace as one space. */
+/** 1-based lines where the quote starts, comparing with every run of whitespace as one space. Linear in the text. */
 function quoteLines(text, quote) {
-  let norm = '';
+  const norm = [];
   const at = []; // index in `text` of each char of `norm`
+  const newlines = []; // index in `text` of each line break
   for (let i = 0; i < text.length; i++) {
-    if (/\s/.test(text[i])) { if (norm && !norm.endsWith(' ')) { norm += ' '; at.push(i); } } else { norm += text[i]; at.push(i); }
+    const c = text[i];
+    if (c === '\n') newlines.push(i);
+    if (/\s/.test(c)) { if (norm.length && norm.at(-1) !== ' ') { norm.push(' '); at.push(i); } } else { norm.push(c); at.push(i); }
   }
+  const flatText = norm.join('');
+  const lineOf = (index) => { // line breaks before `index`, plus one
+    let lo = 0, hi = newlines.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (newlines[mid] < index) lo = mid + 1; else hi = mid; }
+    return lo + 1;
+  };
   const lines = [];
-  for (let from = norm.indexOf(quote); from >= 0; from = norm.indexOf(quote, from + 1)) {
-    lines.push(text.slice(0, at[from]).split('\n').length);
-  }
+  for (let from = flatText.indexOf(quote); from >= 0; from = flatText.indexOf(quote, from + 1)) lines.push(lineOf(at[from]));
   return lines;
 }
 
