@@ -80,7 +80,7 @@ test('markdown: groups in print order, an empty group left out, closed as one li
     '',
     'Closed: 2 fixed · 1 not real · 1 won\'t fix',
     '',
-    'Next: answer the findings under Needs you; run /ux-assessment:decide for Not decided yet.',
+    'Next: answer the findings under Needs you; run Decide on the run under Last seen for Not decided yet.',
     '',
   ].join('\n'));
 });
@@ -95,6 +95,16 @@ test('markdown: a human decision, the to-fix group and the awaiting-check group'
   assert.match(text, /^\| F-02 · B \| medium \| not seen this time \| not decided \| /m);
   assert.doesNotMatch(text, /Closed:/);
   assert.match(text, /\nNext: fix the findings under To fix, then verify them; verify again to confirm those under Waiting for a check\.\n$/);
+});
+
+test('markdown: the Needs you advice follows the rows there: an ask to answer, a changed screen to verify again', () => {
+  const next = (findings) => /\nNext: (.*)\.\n$/.exec(boardMarkdown(boardGroups({ findings })))[1];
+  assert.equal(next({ 'F-01': f('A', 'open', agent('ask')) }), 'answer the findings under Needs you');
+  assert.equal(next({ 'F-01': f('A', 'needs_review', agent('fix')) }), 'verify again the ones whose screen changed');
+  assert.equal(next({ 'F-01': f('A', 'needs_review') }), 'verify again the ones whose screen changed');
+  assert.equal(next({ 'F-01': f('A', 'open', agent('ask')), 'F-02': f('B', 'needs_review', agent('keep')) }),
+    'answer the findings under Needs you; verify again the ones whose screen changed');
+  assert.equal(next({ 'F-01': f('A', 'needs_review', agent('ask')) }), 'answer the findings under Needs you; verify again the ones whose screen changed');
 });
 
 test('markdown: nothing on the board', () => {

@@ -275,9 +275,12 @@ function loadLedger(project) {
 const BOARD_ORDER = ['needs_you', 'to_fix', 'kept', 'undecided', 'awaiting_check', 'closed'];
 const BOARD_TITLES = { needs_you: 'Needs you', to_fix: 'To fix', kept: 'Kept', undecided: 'Not decided yet', awaiting_check: 'Waiting for a check' };
 const BOARD_NEXT = {
-  needs_you: 'answer the findings under Needs you', to_fix: 'fix the findings under To fix, then verify them',
-  undecided: 'run /ux-assessment:decide for Not decided yet', awaiting_check: 'verify again to confirm those under Waiting for a check',
+  to_fix: 'fix the findings under To fix, then verify them',
+  undecided: 'run Decide on the run under Last seen for Not decided yet', awaiting_check: 'verify again to confirm those under Waiting for a check',
 };
+/** Needs you holds asks and findings whose screen changed; each calls for a different step. */
+const needsYouNext = (rows) => [rows.some((r) => r.decision?.value === 'ask') && 'answer the findings under Needs you',
+  rows.some((r) => r.status === 'needs_review') && 'verify again the ones whose screen changed'];
 const CLOSED_STATUSES = ['fixed', 'not_real', 'suppressed'];
 
 /** The first group whose rule the finding meets; the rule order is not the print order. */
@@ -324,7 +327,7 @@ export function boardMarkdown(groups) {
   const counts = CLOSED_STATUSES.map((s) => [closed.filter((r) => r.status === s).length, STATUS_WORDS[s]]).filter(([n]) => n).map(([n, w]) => `${n} ${w}`);
   if (counts.length) blocks.push(`Closed: ${counts.join(' · ')}`);
   if (!blocks.length) return 'No findings on the board.\n';
-  const next = groups.filter((g) => g.rows.length && BOARD_NEXT[g.key]).map((g) => BOARD_NEXT[g.key]);
+  const next = groups.filter((g) => g.rows.length).flatMap((g) => (g.key === 'needs_you' ? needsYouNext(g.rows) : [BOARD_NEXT[g.key]])).filter(Boolean);
   blocks.push(`Next: ${next.length ? next.join('; ') : 'nothing to do'}.`);
   return `${blocks.join('\n\n')}\n`;
 }
