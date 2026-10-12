@@ -61,7 +61,7 @@ This skill asks no question, so it runs the same way unattended.
    Stop.
 6. **Dispatch.** One Agent call: `subagent_type: "ux-assessment:decide"`, `run_in_background: false`.
    The prompt gives the project root, `$PLUGIN` (absolute), the run folder (absolute), the `todo`
-   output verbatim, the path of `<project>/.ux-assessment/charter.md` and the path of
+   output verbatim, the report language (the user's), the path of `<project>/.ux-assessment/charter.md` and the path of
    `$PLUGIN/knowledge/decide.md`. Model: the `claude decide` line of
    `node "$PLUGIN/driver/models.mjs" show <project>`, under the main skill's "Models per role"
    rule (leave `model` out when it is `opus`, the agent's own model). The agent writes

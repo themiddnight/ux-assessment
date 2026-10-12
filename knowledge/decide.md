@@ -107,7 +107,10 @@ line that says the behavior is on purpose, the outcome is not `keep`.
 
 ## `decisions.yaml`
 
-Write `<run folder>/decisions.yaml`. Everything in it is English.
+Write `<run folder>/decisions.yaml`. Write `reason` and `options` in the report language your
+briefing names (the examples below are English): the developer reads them in the report and on
+the question cards. Ids, paths and the `Keep:` marker stay as they are, and a `quote` is always
+the text of the file, untranslated.
 
 ```yaml
 run: 2026-10-12

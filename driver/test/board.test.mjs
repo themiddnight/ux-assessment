@@ -64,7 +64,7 @@ test('markdown: groups in print order, an empty group left out, closed as one li
     '',
     '| Finding | Severity | Status | Decision | Last seen |',
     '|---|---|---|---|---|',
-    '| F-02 · Jargon \\| on landing | medium | still there | ask · agent · Rename it | [2026-10-12](.ux-assessment/runs/2026-10-12/report.md) |',
+    '| F-02 · Jargon \\| on landing | medium | still there | ask · agent · 2 options | [2026-10-12](.ux-assessment/runs/2026-10-12/report.md) |',
     '',
     '## Kept (1)',
     '',

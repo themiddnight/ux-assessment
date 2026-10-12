@@ -301,7 +301,7 @@ export const sourceRef = (s) => `${s.path}:${s.line}`;
 
 function decisionCell(d) {
   if (!d) return 'not decided';
-  const detail = d.value === 'keep' && d.sources?.length ? sourceRef(d.sources[0]) : d.value === 'ask' ? d.options?.[0] : null;
+  const detail = d.value === 'keep' && d.sources?.length ? sourceRef(d.sources[0]) : d.value === 'ask' && d.options?.length ? `${d.options.length} options` : null;
   return [d.value, d.by, detail].filter(Boolean).join(' · ');
 }
 

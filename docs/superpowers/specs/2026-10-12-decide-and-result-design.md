@@ -63,7 +63,9 @@ decisions:
     guard: null               # set by `record` when it changed the decision, e.g. "keep without a source: counted as ask"
 ```
 
-`path` is relative to the project root, with forward slashes.
+`path` is relative to the project root, with forward slashes. `reason` and `options` are in the
+report language, because the developer reads them in the report and on the question cards. An
+option that leaves the app as it is starts with the literal marker `Keep:`.
 
 ### `findings.yaml` (triage)
 
@@ -193,7 +195,7 @@ A `ux` finding goes into the first group whose rule it meets:
 
 The Markdown prints the groups as `needs_you`, `to_fix`, `kept`, `undecided`, `awaiting_check`, then
 `closed` as one line of counts. Columns: Finding (`F-03 · title`), Severity, Status (plain words),
-Decision (value, `by`, and the source or the first option), Last seen (a link to
+Decision (value, `by`, and the source, or how many options an `ask` has), Last seen (a link to
 `runs/<run>/report.md`). Rows are ordered by severity, then id. An empty group is left out. The
 last line says what to do next for the groups that have rows.
 
