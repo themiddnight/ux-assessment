@@ -140,6 +140,9 @@ stay under `.ux-assessment/` with owner-only permissions and outside Git.
    the report section are as in `$PLUGIN/skills/decide/SKILL.md`; in short:
    - Run `node "$PLUGIN/driver/decide.mjs" docs <project>`. On `enabled: false`, skip this step
      unless the user asked for Decide. Show its warnings.
+     A product document opened earlier in this conversation from outside the project is read only
+     once it is saved under `.ux-assessment/docs/`: attended, offer to save it; unattended, save
+     nothing and say it was not used.
    - Run `ledger.mjs sync <project>`, then `node "$PLUGIN/driver/decide.mjs" todo <project> --run <name>`.
      No findings: say so and stop.
    - Read `$PLUGIN/knowledge/decide.md` and follow it exactly: read the product documents once,

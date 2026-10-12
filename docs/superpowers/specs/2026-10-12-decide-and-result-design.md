@@ -109,8 +109,11 @@ models: {claude: {decide: opus}} # optional, like the other roles
 ```
 
 `product_docs` unset means the default list: `AGENTS.md`, `CLAUDE.md`, `README*`, `SPEC.md`,
-`PRD*`, `docs/**`. A folder means every document under it. Documents are files ending in `.md`,
-`.mdx`, `.txt` or `.rst`. `node_modules`, `.git` and `.ux-assessment` are never read. An absolute
+`PRD*`, `docs/**`, `.ux-assessment/docs/**`. A folder means every document under it. Documents are files ending in `.md`,
+`.mdx`, `.txt` or `.rst`. `node_modules`, `.git` and `.ux-assessment` are never read, except `.ux-assessment/docs/`: a
+document from outside the repo (a drive, a wiki, a ticket) is saved there, so that the decide
+agent can read it and a `keep` can cite it. The decide skill offers to save one that was opened
+earlier in the same conversation; unattended runs save nothing. An absolute
 path outside the project is allowed, because the developer wrote it. At most 200 files; beyond
 that, a warning names how many were left out.
 

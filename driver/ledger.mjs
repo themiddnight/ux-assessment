@@ -312,7 +312,7 @@ export function boardMarkdown(groups) {
     if (!rows.length || key === 'closed') continue;
     blocks.push([`## ${BOARD_TITLES[key]} (${rows.length})`, '', '| Finding | Severity | Status | Decision | Last seen |', '|---|---|---|---|---|',
       ...rows.map((r) => `| ${cell(`${r.id} · ${r.title}`)} | ${r.severity ?? ''} | ${STATUS_WORDS[r.status] ?? r.status} | ${cell(decisionCell(r.decision))} | `
-        + `${r.last_seen ? `[${r.last_seen}](runs/${r.last_seen}/report.md)` : ''} |`)].join('\n'));
+        + `${r.last_seen ? `[${r.last_seen}](.ux-assessment/runs/${r.last_seen}/report.md)` : ''} |`)].join('\n'));
   }
   const closed = groups.find((g) => g.key === 'closed')?.rows ?? [];
   const counts = CLOSED_STATUSES.map((s) => [closed.filter((r) => r.status === s).length, STATUS_WORDS[s]]).filter(([n]) => n).map(([n, w]) => `${n} ${w}`);

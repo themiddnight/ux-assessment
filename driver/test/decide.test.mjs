@@ -28,15 +28,17 @@ const project = (t) => {
 };
 
 test('the default list', () => {
-  assert.deepEqual(DEFAULT_DOCS, ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**']);
+  assert.deepEqual(DEFAULT_DOCS, ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**', '.ux-assessment/docs/**']);
 });
 
-test('resolveDocs: the defaults find documents only, sorted, never inside node_modules, .git or .ux-assessment', (t) => {
+test('resolveDocs: the defaults find documents only, sorted, never inside node_modules, .git or .ux-assessment, except the saved documents', (t) => {
   const p = project(t);
   for (const rel of ['AGENTS.md', 'README.md', 'README', 'SPEC.md', 'PRD-v2.md', 'PRD', 'notes.md', 'docs/b.md', 'docs/a/deep.mdx', 'docs/z.txt',
-    'docs/guide.rst', 'docs/logo.png', 'docs/node_modules/x.md', 'node_modules/pkg/README.md', '.git/docs/y.md', '.ux-assessment/docs/z.md']) p.put(rel);
+    'docs/guide.rst', 'docs/logo.png', 'docs/node_modules/x.md', 'node_modules/pkg/README.md', '.git/docs/y.md', '.ux-assessment/docs/z.md', '.ux-assessment/docs/logo.png', '.ux-assessment/charter.md', '.ux-assessment/runs/r/report.md']) p.put(rel);
   assert.deepEqual(resolveDocs(p.root, DEFAULT_DOCS), {
-    files: ['AGENTS.md', 'PRD-v2.md', 'README.md', 'SPEC.md', 'docs/a/deep.mdx', 'docs/b.md', 'docs/guide.rst', 'docs/z.txt'], warnings: [] });
+    files: ['.ux-assessment/docs/z.md', 'AGENTS.md', 'PRD-v2.md', 'README.md', 'SPEC.md', 'docs/a/deep.mdx', 'docs/b.md', 'docs/guide.rst', 'docs/z.txt'], warnings: [] });
+  assert.deepEqual(resolveDocs(p.root, ['.ux-assessment/docs']).files, ['.ux-assessment/docs/z.md']);
+  assert.deepEqual(resolveDocs(p.root, ['.ux-assessment/runs', '.ux-assessment']).files, []);
 });
 
 test('resolveDocs: a file, a folder (recursive), a glob; duplicates once; a symlink to a listed file once', (t) => {

@@ -302,6 +302,7 @@ subscription. Then **offer** (ask, do not edit) to add to
 .ux-assessment/state/
 .ux-assessment/secrets.local.yaml
 .ux-assessment/usage.jsonl
+.ux-assessment/docs/
 .ux-assessment/active-run
 ```
 

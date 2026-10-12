@@ -171,7 +171,11 @@ decide: off                      # on (the default) or off: off skips the step a
 ```
 
 Without `product_docs` it reads `AGENTS.md`, `CLAUDE.md`, `README*`, `SPEC.md`, `PRD*` and
-`docs/**` (files ending in `.md`, `.mdx`, `.txt` or `.rst`, at most 200).
+`docs/**` (files ending in `.md`, `.mdx`, `.txt` or `.rst`, at most 200), and what is saved in
+`.ux-assessment/docs/`. A document that lives outside the repo (a drive, a wiki, a ticket) is read
+only once it is saved there: the decide step offers to save one you opened in the same
+conversation. The offered `.gitignore` lines keep that folder out of git; remove the line to
+share the copies.
 `node driver/decide.mjs docs <app repo>` lists the documents it would read.
 
 ## How it works
@@ -343,6 +347,7 @@ node driver/usage.mjs estimate --harness claude --personas 6 --cap 15
 | recon | opus | 1 | not measured | not measured | not measured |
 | persona | sonnet | 6 | 153.6k–288.0k | 1.42M–2.65M | 16.8k–31.5k |
 | triage | opus | 1 | 60.0k–143.0k | 626.0k–2.34M | 20.0k–36.2k |
+| decide | opus | 1 | not measured | not measured | not measured |
 | orchestrator | sonnet | 1 | 76.0k–131.0k | 916.0k–1.53M | 18.0k–43.0k |
 
 Low: 8 steps per session (or the cap if lower); high: the cap (15 for a verifier). Input includes cache writes.
@@ -373,6 +378,7 @@ Everything a run writes is in `<app repo>/.ux-assessment/`:
 ├── runs/              # one folder per run: report, decisions, fix tasks, logs, screenshots
 ├── ledger.yaml        # cross-run finding identity, history and status
 ├── feedback.md        # finding labels
+├── docs/              # product documents saved from outside the repo, for the decide step
 ├── usage.jsonl        # token records
 └── secrets.local.yaml # test credentials
 ```
@@ -390,6 +396,7 @@ Keep these out of git:
 .ux-assessment/state/
 .ux-assessment/secrets.local.yaml
 .ux-assessment/usage.jsonl
+.ux-assessment/docs/
 .ux-assessment/active-run
 .ux-assessment/codex-self-check.json
 ```

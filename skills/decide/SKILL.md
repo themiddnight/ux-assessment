@@ -40,6 +40,17 @@ This skill asks no question, so it runs the same way unattended.
      step. Say so in one sentence.
    - `files` is empty: go on, and tell the user that no product documents were found, so the
      proposals rest on the code alone. `/ux-assessment:settings` sets where the documents are.
+   **Documents opened in this conversation.** The decide agent starts with an empty context and
+   reads files only, and a `keep` must cite a file. A product document that was opened earlier in
+   this conversation from outside the project (a drive, a wiki page, a ticket) is therefore not
+   used unless it is saved. When there is one, and you are attended, ask once: **Save for the
+   decide step** · **No**. On yes, write each to `<project>/.ux-assessment/docs/<short-name>.md`:
+   first the line `<!-- source: <where it came from> · saved: <date> -->`, then the text as it
+   was, not a summary (for a very long document, the sections about how the app behaves, with a
+   line saying what was left out). The default document list includes that folder; when the
+   project sets its own `product_docs`, tell the user to add `.ux-assessment/docs/` to it. Then
+   run `decide.mjs docs` again. The file is a copy from that date: say so. Unattended: save
+   nothing, and say in the final message that those documents were not used.
 3. **Active run.** Write the run folder's name as the only line of
    `<project>/.ux-assessment/active-run`, so the token hook counts the agent for this run.
 4. **Sync.** Run `node "$PLUGIN/driver/ledger.mjs" sync <project>`. Show any stderr warning to the

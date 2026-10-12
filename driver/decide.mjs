@@ -11,7 +11,9 @@ import {
 import { configPath } from './models.mjs';
 import { isInside } from './paths.mjs';
 
-export const DEFAULT_DOCS = ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**'];
+/** Documents saved from outside the repo (a drive, a wiki, a ticket) so that a `keep` can cite them. */
+export const SAVED_DOCS = '.ux-assessment/docs';
+export const DEFAULT_DOCS = ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**', `${SAVED_DOCS}/**`];
 const MAX_DOCS = 200;
 const DOC_EXT = /\.(md|mdx|txt|rst)$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git', '.ux-assessment']);
@@ -52,7 +54,8 @@ function expand(root, pattern) {
   const first = segments.findIndex((s) => GLOB.test(s));
   if (first < 0) {
     const target = path.resolve(root, pattern);
-    if (isInside(root, target) && slashed(path.relative(root, target)).split('/').some((s) => SKIP_DIRS.has(s))) return [];
+    const rel = slashed(path.relative(root, target));
+    if (isInside(root, target) && rel !== SAVED_DOCS && !rel.startsWith(`${SAVED_DOCS}/`) && rel.split('/').some((s) => SKIP_DIRS.has(s))) return [];
     if (statFile(target)) return [target];
     return fs.existsSync(target) ? walk(target, Infinity) : [];
   }

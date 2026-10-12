@@ -46,7 +46,8 @@ One card: **Product documents** · **Decide on or off** · **Models** · **Nothi
 
 - **Product documents.** Ask for the paths as free text: files, folders or globs, relative to the
   project, separated by commas (for example `docs/, SPEC.md, PRD*`). A folder means every document
-  under it. An empty answer goes back to the default list: remove the `product_docs` key. Write
+  under it. A document that lives outside the project (a drive, a wiki) has to be saved as a file first:
+  `.ux-assessment/docs/` is the place, and the default list includes it. An empty answer goes back to the default list: remove the `product_docs` key. Write
   `product_docs` as a YAML list. Then run `decide.mjs docs <project>` again and show what matched:
   the count, and the files when there are ten or fewer. A pattern that matches nothing is
   reported to the user by name, never kept silently: ask **Fix it** (ask for the paths again) ·
