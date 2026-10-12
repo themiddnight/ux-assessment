@@ -397,7 +397,7 @@ export function verifyTable(project, run) {
       ? 'not_reproduced (no step: counted as unreachable)'
       : `${v.verdict}${v.at_step != null ? ` (step ${v.at_step})` : ''}`;
     const shot = v.at_screenshot ? `[screenshot](${v.at_screenshot})` : '';
-    lines.push(`| ${id} ${cell(e.title_local || e.title)} | ${verdict} | ${STATUS_WORDS[e.status] ?? e.status} | ${shot} | ${cell(v.note)} |`);
+    lines.push(`| ${id} · ${cell(e.title_local || e.title)} | ${verdict} | ${STATUS_WORDS[e.status] ?? e.status} | ${shot} | ${cell(v.note)} |`);
   }
   return `${lines.join('\n')}\n`;
 }

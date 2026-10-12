@@ -158,8 +158,8 @@ test('table and status render the ledger; the CLI reports odd folders on stderr'
   assert.match(stderr, /ledger: warning: runs\/scratch: not a YYYY-MM-DD\[-suffix\] name, skipped/);
   const table = verifyTable(p.root, '2026-09-28-verify');
   assert.match(table, /^\| Finding \| Verdict \| Status now \| Evidence \| Note \|$/m);
-  assert.match(table, /\| F-01 Save is silent \| not_reproduced \(step 2\) \| not seen this time \| \[screenshot\]\(F-01\/screenshots\/s03\.png\) \| toast \\\| shown \|/);
-  assert.match(table, /\| F-02 Jargon \\\| on landing \| not_reproduced \(no step: counted as unreachable\) \| open \|/);
+  assert.match(table, /\| F-01 · Save is silent \| not_reproduced \(step 2\) \| not seen this time \| \[screenshot\]\(F-01\/screenshots\/s03\.png\) \| toast \\\| shown \|/);
+  assert.match(table, /\| F-02 · Jargon \\\| on landing \| not_reproduced \(no step: counted as unreachable\) \| open \|/);
   assert.match(statusLines(p.root), /^F-01\tnot_seen\tSave is silent$/m);
   // non-ux records show their kind, not a status: they are never verified
   assert.match(statusLines(p.root), /^E-01\tenv_error\tShim artefact$/m);
@@ -193,7 +193,7 @@ test('table --run is a folder name: a path fails with a clear message', async ()
     .then(() => null, (e) => e);
   assert.equal(cli.code, 1);
   assert.match(cli.stderr, /--run takes the run folder name, such as 2026-09-29-verify, not a path/);
-  assert.match(verifyTable(p.root, '2026-09-28-verify'), /\| F-01 Save is silent \| reproduced \|/);
+  assert.match(verifyTable(p.root, '2026-09-28-verify'), /\| F-01 · Save is silent \| reproduced \|/);
 });
 
 test('open --needs-review adds the needs_review findings a user may Pick; plain open leaves them out', async () => {
@@ -235,7 +235,7 @@ test('title_local is kept on the sighting and the finding, falls back to title, 
   assert.equal(l.findings['F-02'].sightings[0].title_local, 'Jargon on landing');
   assert.match(statusLines(p.root), /^F-01\tstill_present\tบันทึกแล้วไม่มีอะไรบอก$/m);
   assert.match(statusLines(p.root), /^F-02\topen\tJargon on landing$/m);
-  assert.match(verifyTable(p.root, '2026-09-26-verify'), /^\| F-01 บันทึกแล้วไม่มีอะไรบอก \| reproduced \|/m);
+  assert.match(verifyTable(p.root, '2026-09-26-verify'), /^\| F-01 · บันทึกแล้วไม่มีอะไรบอก \| reproduced \|/m);
 });
 
 const decisionsYaml = (run, decisions) => YAML.stringify({ run, decided_at: '2026-10-12T09:30:00.000Z', checked: true, decisions });
