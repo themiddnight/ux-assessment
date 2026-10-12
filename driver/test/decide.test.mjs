@@ -198,7 +198,7 @@ test('checkDecisions: a clean keep, fix and ask pass through in todo order with 
 test('guard: an id that is not in todo is dropped', () => {
   const r = check([keep(), { id: 'F-99', decision: 'fix' }, { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
   assert.deepEqual(r.decisions.map((d) => d.id), ['F-01', 'F-02', 'F-03']);
-  assert.deepEqual(r.warnings, ['F-99: not a finding to decide in this run, dropped']);
+  assert.deepEqual(r.warnings, ['F-99: not a finding to decide in this run (already labelled, suppressed, or not in it), dropped']);
 });
 
 test('guard: a todo finding with no decision is added as ask', () => {
@@ -371,6 +371,19 @@ test('withSuggestions: adds, replaces, touches only the named run, keeps labels 
   assert.equal(out.length, FEEDBACK.split('\n').length);
 });
 
+test('withSuggestions: only a suggest segment of ours right before label is replaced; a title that says "suggest:" stays', () => {
+  const feedback = ['## Run 2026-10-12',
+    '- F-01 Four - suggest: nothing shows — label: ? — note:',
+    '- F-02 Two - suggest: fix the typo - suggest: ask — label: ? — note:',
+    '- F-03 Three — suggest: keep (docs/my - prd.md:7) — label: ? — note:',
+    '- F-04 Four — suggest: keepers — label: ? — note:', ''].join('\n');
+  const out = withSuggestions(feedback, '2026-10-12', ['F-01', 'F-02', 'F-03', 'F-04'].map((id) => ({ id, decision: 'fix' }))).split('\n');
+  assert.equal(out[1], '- F-01 Four - suggest: nothing shows — suggest: fix — label: ? — note:');
+  assert.equal(out[2], '- F-02 Two - suggest: fix the typo — suggest: fix — label: ? — note:');
+  assert.equal(out[3], '- F-03 Three — suggest: fix — label: ? — note:');
+  assert.equal(out[4], '- F-04 Four — suggest: keepers — suggest: fix — label: ? — note:');
+});
+
 test('withSuggestions: running twice gives the same text; a run with no section, and CRLF, are handled', () => {
   const once = withSuggestions(FEEDBACK, '2026-10-12', DECISIONS);
   assert.equal(withSuggestions(once, '2026-10-12', DECISIONS), once);
@@ -454,7 +467,7 @@ test('CLI record: guards, normalized decisions.yaml, suggest segments in feedbac
   assert.equal(r.status, 0);
   assert.deepEqual(JSON.parse(r.stdout), { decisions: 2, counts: { fix: 0, keep: 1, ask: 1 }, guards: ['F-02'] });
   assert.equal(r.stdout.trim().split('\n').length, 1);
-  assert.equal(r.stderr, 'decide: warning: F-77: not a finding to decide in this run, dropped\ndecide: warning: F-02: keep without a source: counted as ask\n');
+  assert.equal(r.stderr, 'decide: warning: F-77: not a finding to decide in this run (already labelled, suppressed, or not in it), dropped\ndecide: warning: F-02: keep without a source: counted as ask\n');
   const doc = YAML.parse(fs.readFileSync(dec, 'utf8'));
   assert.equal(doc.run, '2026-10-12');
   assert.match(doc.decided_at, /^\d{4}-\d\d-\d\dT/);

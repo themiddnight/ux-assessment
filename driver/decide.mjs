@@ -20,6 +20,8 @@ const DOC_EXT = /\.(md|mdx|txt|rst)$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git', '.ux-assessment']);
 const ASK_OPTIONS = ['Fix it', 'Keep: leave it as it is'];
 const GLOB = /\*/;
+/** The `— suggest: fix|ask|keep (path:line)` segment `record` writes, at the end of what comes before `— label:`. */
+const OWN_SUGGEST = /\s+[—–-]{1,2}\s*suggest\s*:\s*(?:fix|ask|keep(?:\s*\(.*\))?)\s*$/i;
 const NOT_TEXT = 'an option that is not text was dropped';
 
 const isMap = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
@@ -170,7 +172,7 @@ export function checkDecisions({ decisions, todo, readFile, relPath = (p) => p, 
   const wanted = new Set(todo.map((f) => f.id));
   const given = new Map();
   for (const d of decisions) {
-    if (!wanted.has(d?.id)) { warnings.push(`${d?.id}: not a finding to decide in this run, dropped`); continue; }
+    if (!wanted.has(d?.id)) { warnings.push(`${d?.id}: not a finding to decide in this run (already labelled, suppressed, or not in it), dropped`); continue; }
     if (given.has(d.id)) warnings.push(`${d.id}: decided twice, the last one counts`);
     given.set(d.id, d);
   }
@@ -225,7 +227,7 @@ export function withSuggestions(feedbackText, run, decisions) {
     const d = inRun ? byIdMap.get(BULLET_ID_RE.exec(line)?.[1].toUpperCase()) : null;
     const m = d && /^(.*)(\s+[—–-]{1,2}\s*label\s*:.*)$/i.exec(line);
     if (!m) return raw;
-    return `${m[1].replace(/\s+[—–-]{1,2}\s*suggest\s*:.*$/i, '')} — suggest: ${suggestText(d)}${m[2]}${cr}`;
+    return `${m[1].replace(OWN_SUGGEST, '')} — suggest: ${suggestText(d)}${m[2]}${cr}`;
   }).join('\n');
 }
 
