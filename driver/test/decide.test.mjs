@@ -283,11 +283,16 @@ test('a fix or ask keeps the sources that check out and drops the others; ask wi
   assert.equal(byIdOf(r, 'F-01').guard, 'source src/a.js dropped (quote not found in the file)');
 });
 
-test('a guard already in the file is kept when the same input produces none (record twice)', () => {
-  const r = check([{ id: 'F-01', decision: 'ask', reason: 'x', options: ['A'], guard: 'keep without a source: counted as ask' },
-    { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }]);
-  assert.equal(byIdOf(r, 'F-01').guard, 'keep without a source: counted as ask');
-  assert.deepEqual(r.warnings, []);
+test('a guard already in a checked file is kept when the same input produces none (record twice); one the agent wrote is discarded', () => {
+  const decisions = [{ id: 'F-01', decision: 'ask', reason: 'x', options: ['A', 'B'], guard: 'keep without a source: counted as ask' },
+    { id: 'F-02', decision: 'fix' }, { id: 'F-03', decision: 'fix' }];
+  const checked = checkDecisions({ decisions, todo: TODO, readFile, checked: true });
+  assert.equal(byIdOf(checked, 'F-01').guard, 'keep without a source: counted as ask');
+  assert.deepEqual(checked.warnings, []);
+  for (const r of [check(decisions), checkDecisions({ decisions, todo: TODO, readFile, checked: false })]) {
+    assert.equal(byIdOf(r, 'F-01').guard, null);
+    assert.deepEqual(r.warnings, []);
+  }
 });
 
 test('checkDecisions: relPath turns a path the agent wrote into the one stored; a second decision for an id replaces the first', () => {
@@ -427,6 +432,8 @@ test('CLI record: guards, normalized decisions.yaml, suggest segments in feedbac
   const doc = YAML.parse(fs.readFileSync(dec, 'utf8'));
   assert.equal(doc.run, '2026-10-12');
   assert.match(doc.decided_at, /^\d{4}-\d\d-\d\dT/);
+  assert.equal(doc.checked, true);
+  assert.match(fs.readFileSync(dec, 'utf8'), /\ndecided_at: .*\nchecked: true\n/);
   assert.deepEqual(doc.decisions.map((d) => [d.id, d.decision, d.guard]), [['F-01', 'keep', null], ['F-02', 'ask', 'keep without a source: counted as ask']]);
   assert.equal(doc.decisions[0].sources[0].line, 3);
   assert.match(fs.readFileSync(dec, 'utf8'), /^# Written by ux-assessment driver\/decide\.mjs record/);
@@ -524,6 +531,13 @@ test('CLI record: a project reached through a symlinked path still accepts its o
   assert.equal(one.decision, 'keep');
   assert.equal(one.guard, null);
   assert.deepEqual(one.sources.map((s) => s.path), ['docs/prd.md', 'docs/prd.md']);
+});
+
+test('CLI record: a guard the agent wrote is not kept; the one record wrote survives a second record', (t) => {
+  const p = cliProject(t);
+  writeAgent(p, [{ id: 'F-01', decision: 'fix', reason: 'r', guard: 'invented by the agent' }, { id: 'F-02', decision: 'keep', reason: 'r' }]);
+  assert.deepEqual(recordOf(p).map((d) => d.guard), [null, 'keep without a source: counted as ask']);
+  assert.deepEqual(recordOf(p).map((d) => d.guard), [null, 'keep without a source: counted as ask']);
 });
 
 test('CLI table prints the Decisions section from decisions.yaml and the local titles', (t) => {

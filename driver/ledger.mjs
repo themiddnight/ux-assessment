@@ -85,11 +85,14 @@ export function readFindings(text) {
 
 export const DECISIONS = ['fix', 'keep', 'ask'];
 
-/** The decide agent's decisions.yaml: {decisions: [...]} or a bare list. Not yet checked: `decide.mjs record` does that. */
+/**
+ * A decisions.yaml: {decisions: [...]} or a bare list. `checked` is true only in the copy `decide.mjs record` wrote;
+ * what the agent wrote is a proposal that sync ignores.
+ */
 export function readDecisions(text) {
   const doc = YAML.parse(text);
   const list = Array.isArray(doc) ? doc : Array.isArray(doc?.decisions) ? doc.decisions : [];
-  return list.filter((d) => d && typeof d.id === 'string');
+  return { list: list.filter((d) => d && typeof d.id === 'string'), decidedAt: doc?.decided_at ?? null, checked: doc?.checked === true };
 }
 
 const usable = (e) => e.type === 'sighting' || e.verdict === 'reproduced' || e.verdict === 'changed'
@@ -204,17 +207,20 @@ export function syncLedger(project) {
         const started = fs.existsSync(runJson) ? iso(JSON.parse(fs.readFileSync(runJson, 'utf8')).started_at) : null;
         ledger.runs[name] = { kind: 'persona',
           started_at: started ?? ledger.runs[name]?.started_at ?? firstLogTime(dir, warnings) };
-        replaceRunEvents(ledger, name, 'sightings', readFindings(fs.readFileSync(findingsFile, 'utf8')).map((f) => [f.id, {
+        const found = readFindings(fs.readFileSync(findingsFile, 'utf8'));
+        replaceRunEvents(ledger, name, 'sightings', found.map((f) => [f.id, {
           run: name, title: f.title ?? '', title_local: f.title_local ?? f.title ?? '', kind: f.kind, severity: f.severity ?? null, confidence: f.confidence ?? null,
           personas: f.personas ?? [], evidence: f.evidence ?? [], what_happened: f.what_happened ?? '',
           check: f.check ?? null, suppressed: f.suppressed === true,
         }]));
         const decisionsFile = path.join(dir, 'decisions.yaml');
-        replaceRunEvents(ledger, name, 'decisions', !fs.existsSync(decisionsFile) ? []
-          : readDecisions(fs.readFileSync(decisionsFile, 'utf8')).filter((d) => DECISIONS.includes(d.decision)).map((d) => [d.id, {
-            run: name, value: d.decision, reason: String(d.reason ?? ''), sources: Array.isArray(d.sources) ? d.sources : [],
-            options: Array.isArray(d.options) ? d.options.map(String) : [],
-          }]));
+        const { list, checked } = fs.existsSync(decisionsFile) ? readDecisions(fs.readFileSync(decisionsFile, 'utf8')) : { list: [], checked: true };
+        if (!checked) warnings.push(`runs/${name}: decisions.yaml was not checked by decide.mjs record, ignored`);
+        const ids = new Set(found.map((f) => f.id));
+        replaceRunEvents(ledger, name, 'decisions', !checked ? [] : list.filter((d) => ids.has(d.id) && DECISIONS.includes(d.decision)).map((d) => [d.id, {
+          run: name, value: d.decision, reason: String(d.reason ?? ''), sources: Array.isArray(d.sources) ? d.sources : [],
+          options: Array.isArray(d.options) ? d.options.map(String) : [],
+        }]));
       }
     } catch (error) {
       warnings.push(`runs/${name}: ${error.message.split('\n')[0]} (kept the ledger's earlier events for this run)`);

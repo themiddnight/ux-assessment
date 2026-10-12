@@ -238,7 +238,7 @@ test('title_local is kept on the sighting and the finding, falls back to title, 
   assert.match(verifyTable(p.root, '2026-09-26-verify'), /^\| F-01 บันทึกแล้วไม่มีอะไรบอก \| reproduced \|/m);
 });
 
-const decisionsYaml = (run, decisions) => YAML.stringify({ run, decided_at: '2026-10-12T09:30:00.000Z', decisions });
+const decisionsYaml = (run, decisions) => YAML.stringify({ run, decided_at: '2026-10-12T09:30:00.000Z', checked: true, decisions });
 const KEEP = { id: 'F-01', decision: 'keep', reason: 'The PRD says so.', options: [],
   sources: [{ path: 'docs/prd.md', line: 42, quote: 'Save is silent on purpose' }], guard: null };
 const ASK = { id: 'F-02', decision: 'ask', reason: 'Docs and code disagree.', options: ['Rename it', 'Keep the jargon'], sources: [], guard: null };
@@ -290,14 +290,42 @@ test('decision never changes the status; it survives a deleted run folder and st
   assert.equal(p.ledger().findings['F-01'].decision.sources[0].path, 'docs/prd.md');
 });
 
-test('decision: removing decisions.yaml from a present run removes its decision; a bare list and a bad value are read leniently', () => {
+test('decision: removing decisions.yaml from a present run removes its decision; a value that is not fix, keep or ask is left out', () => {
   const p = makeProject();
   seedPersonaRun(p);
-  p.put('runs/2026-09-25/decisions.yaml', YAML.stringify([KEEP, { ...ASK, decision: 'maybe' }]));
+  p.put('runs/2026-09-25/decisions.yaml', decisionsYaml('2026-09-25', [KEEP, { ...ASK, decision: 'maybe' }]));
   syncLedger(p.root);
   assert.equal(p.ledger().findings['F-01'].decision.value, 'keep');
   assert.equal(p.ledger().findings['F-02'].decision, null);
   fs.rmSync(path.join(p.root, '.ux-assessment/runs/2026-09-25/decisions.yaml'));
   syncLedger(p.root);
   assert.equal(p.ledger().findings['F-01'].decision, null);
+});
+
+test('decision: a decisions.yaml that decide.mjs record did not mark checked is ignored with a warning, whatever its shape', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  const warning = 'runs/2026-09-25: decisions.yaml was not checked by decide.mjs record, ignored';
+  for (const text of [YAML.stringify({ run: '2026-09-25', decisions: [KEEP, ASK] }), YAML.stringify([KEEP, ASK]),
+    YAML.stringify({ run: '2026-09-25', checked: 'yes', decisions: [KEEP] })]) {
+    p.put('runs/2026-09-25/decisions.yaml', text);
+    const { warnings } = syncLedger(p.root);
+    assert.ok(warnings.includes(warning), text);
+    assert.equal(p.ledger().findings['F-01'].decision, null);
+    assert.deepEqual(p.ledger().findings['F-01'].decisions, []);
+  }
+});
+
+test('decision: a decision whose id is not among that run\'s findings is dropped, though an earlier run has that id (a later triage renumbered)', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/decisions.yaml', decisionsYaml('2026-09-25', [KEEP]));
+  seedPersonaRun(p, '2026-09-28', RUN_0925.replace('id: F-02', 'id: F-05'), Date.parse('2026-09-28T08:00:00Z'));
+  p.put('runs/2026-09-28/decisions.yaml', decisionsYaml('2026-09-28', [{ ...ASK, id: 'F-02' }, { ...ASK, id: 'F-05' }]));
+  syncLedger(p.root);
+  const l = p.ledger();
+  assert.equal(l.findings['F-02'].decision, null);
+  assert.deepEqual(l.findings['F-02'].decisions, []);
+  assert.equal(l.findings['F-05'].decision.run, '2026-09-28');
+  assert.equal(l.findings['F-01'].decision.value, 'keep');
 });

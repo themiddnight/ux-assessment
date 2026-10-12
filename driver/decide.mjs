@@ -161,9 +161,10 @@ function checkSource(source, readFile, relPath) {
 
 /**
  * The agent's decisions against the findings it had to decide. `readFile(path)` returns a file's text or throws an Error whose
- * message says why it may not be used. Every change sets `guard` and adds a warning; a guard already on an entry stays.
+ * message says why it may not be used. Every change sets `guard` and adds a warning. A guard already on an entry stays only when
+ * the file was `checked` (written by `record`): in the agent's own file it is not trusted.
  */
-export function checkDecisions({ decisions, todo, readFile, relPath = (p) => p }) {
+export function checkDecisions({ decisions, todo, readFile, relPath = (p) => p, checked = false }) {
   const warnings = [];
   const wanted = new Set(todo.map((f) => f.id));
   const given = new Map();
@@ -193,7 +194,7 @@ export function checkDecisions({ decisions, todo, readFile, relPath = (p) => p }
     const options = Array.isArray(d.options) ? d.options.map(flat).filter(Boolean) : [];
     if (guards.length && decision === 'ask' && d.decision !== 'ask' && !options.length) options.push(...ASK_OPTIONS);
     if (guards.length) warnings.push(`${id}: ${guards.join('; ')}`);
-    return { id, decision, reason: flat(d.reason), sources, options, guard: guards.length ? guards.join('; ') : typeof d.guard === 'string' ? d.guard : null };
+    return { id, decision, reason: flat(d.reason), sources, options, guard: guards.length ? guards.join('; ') : checked && typeof d.guard === 'string' ? d.guard : null };
   });
   return { decisions: out, warnings };
 }
@@ -237,8 +238,7 @@ const decisionsFile = (project, run) => path.join(rootOf(project), 'runs', check
 function readAgentDecisions(file) {
   if (!fs.existsSync(file)) throw new Error(`no decisions.yaml in ${path.dirname(file)}; the decide agent writes it`);
   try {
-    const text = fs.readFileSync(file, 'utf8');
-    return { list: readDecisions(text), decidedAt: YAML.parse(text)?.decided_at ?? null };
+    return readDecisions(fs.readFileSync(file, 'utf8'));
   } catch (error) {
     throw new Error(`cannot read ${file}: ${error.message.split('\n')[0]}`);
   }
@@ -249,7 +249,7 @@ export function recordDecisions(project, run) {
   const root = path.resolve(project);
   const file = decisionsFile(root, run);
   const todo = todoFindings(root, run);
-  const { list, decidedAt } = readAgentDecisions(file);
+  const { list, decidedAt, checked } = readAgentDecisions(file);
   const real = (p) => { try { return fs.realpathSync(p); } catch { return null; } };
   const realRoot = real(root);
   const docs = new Set(resolveDocs(root, decideConfig(root).patterns).files.map((f) => real(path.resolve(root, f))));
@@ -267,8 +267,8 @@ export function recordDecisions(project, run) {
     const at = real(abs) ?? abs;
     return slashed(isInside(root, abs) ? path.relative(root, abs) : isInside(realRoot, at) ? path.relative(realRoot, at) : abs);
   };
-  const { decisions, warnings } = checkDecisions({ decisions: list, todo, readFile, relPath });
-  const doc = { run, decided_at: decidedAt ?? new Date().toISOString(), decisions };
+  const { decisions, warnings } = checkDecisions({ decisions: list, todo, readFile, relPath, checked });
+  const doc = { run, decided_at: decidedAt ?? new Date().toISOString(), checked: true, decisions };
   fs.writeFileSync(file, `# Written by ux-assessment driver/decide.mjs record from the decide agent's decisions.yaml\n${YAML.stringify(doc, { lineWidth: 0 })}`);
   const feedback = path.join(rootOf(root), 'feedback.md');
   if (fs.existsSync(feedback)) {
