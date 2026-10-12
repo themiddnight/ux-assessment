@@ -465,6 +465,67 @@ test('CLI record accepts a bare list, reads a source outside the project only wh
   assert.deepEqual(ledger.findings['F-02'].decision, { value: 'fix', by: 'agent', reason: 'no doc', sources: [], options: [], run: '2026-10-12' });
 });
 
+const recordOf = (p, project = p.root) => {
+  const r = run(['record', project, '--run', '2026-10-12']);
+  assert.equal(r.status, 0, r.stderr);
+  return YAML.parse(fs.readFileSync(path.join(p.root, '.ux-assessment/runs/2026-10-12/decisions.yaml'), 'utf8')).decisions;
+};
+const writeAgent = (p, decisions) => fs.writeFileSync(path.join(p.root, '.ux-assessment/runs/2026-10-12/decisions.yaml'), YAML.stringify({ decisions }));
+
+test('CLI record: a source may not cite the run\'s own output; the charter and the saved documents stay citable', (t) => {
+  const p = cliProject(t);
+  p.ux('charter.md', 'Goal: export without sign-up.\n');
+  p.ux('docs/saved.md', 'Saved ticket text.\n');
+  const own = 'an invented quote about toasts';
+  const cite = (rel, quote) => ({ path: rel, line: 1, quote });
+  writeAgent(p, [
+    { id: 'F-01', decision: 'keep', reason: 'r', sources: [cite('.ux-assessment/runs/2026-10-12/decisions.yaml', own), cite('.ux-assessment/feedback.md', 'Jargon on landing'),
+      cite('.ux-assessment/ledger.yaml', 'F-01')] },
+    { id: 'F-02', decision: 'keep', reason: 'r', sources: [cite('.ux-assessment/charter.md', 'Goal: export'), cite('.ux-assessment/docs/saved.md', 'Saved ticket text.')] },
+  ]);
+  const [one, two] = recordOf(p);
+  assert.equal(one.decision, 'ask');
+  assert.equal(one.guard, ['decisions.yaml', 'feedback.md', 'ledger.yaml'].map((n) => `source .ux-assessment/${n === 'decisions.yaml' ? 'runs/2026-10-12/' : ''}${n} dropped (not a citable file)`)
+    .join('; ') + '; keep without a usable source: counted as ask');
+  assert.equal(two.decision, 'keep');
+  assert.deepEqual(two.sources.map((s) => s.path), ['.ux-assessment/charter.md', '.ux-assessment/docs/saved.md']);
+  const dec = path.join(p.root, '.ux-assessment/runs/2026-10-12/decisions.yaml');
+  const once = fs.readFileSync(dec, 'utf8');
+  assert.equal(run(['record', p.root, '--run', '2026-10-12']).status, 0);
+  assert.equal(fs.readFileSync(dec, 'utf8'), once);
+});
+
+test('CLI record: paths are compared by real path; a symlink out of the project is a product document only when its target is one', (t) => {
+  const p = cliProject(t);
+  const other = tempDir(t);
+  fs.writeFileSync(path.join(other, 'secret.md'), 'Private plan.\n');
+  fs.writeFileSync(path.join(other, 'brand.md'), 'Brand voice.\n');
+  fs.symlinkSync(path.join(other, 'secret.md'), path.join(p.root, 'docs/secret-link.md'));
+  fs.symlinkSync(path.join(other, 'brand.md'), path.join(p.root, 'docs/brand-link.md'));
+  p.ux('config.yaml', `product_docs: [README.md, ${JSON.stringify(path.join(other, 'brand.md'))}]\n`);
+  const cite = (rel, quote) => ({ path: rel, line: 1, quote });
+  writeAgent(p, [
+    { id: 'F-01', decision: 'keep', reason: 'r', sources: [cite('docs/secret-link.md', 'Private plan.')] },
+    { id: 'F-02', decision: 'keep', reason: 'r', sources: [cite('docs/brand-link.md', 'Brand voice.'), cite('docs/none.md', 'x')] },
+  ]);
+  const [one, two] = recordOf(p);
+  assert.equal(one.guard, 'source docs/secret-link.md dropped (not inside the project or a product document); keep without a usable source: counted as ask');
+  assert.deepEqual(two.sources, [{ path: 'docs/brand-link.md', line: 1, quote: 'Brand voice.' }]);
+  assert.equal(two.guard, 'source docs/none.md dropped (file not found)');
+});
+
+test('CLI record: a project reached through a symlinked path still accepts its own files, written relative or by their real path', (t) => {
+  const p = cliProject(t);
+  const alias = path.join(tempDir(t), 'alias');
+  fs.symlinkSync(p.root, alias);
+  writeAgent(p, [{ id: 'F-01', decision: 'keep', reason: 'r', sources: [{ path: 'docs/prd.md', line: 3, quote: 'Export is for signed-in users' },
+    { path: path.join(p.root, 'docs/prd.md'), line: 3, quote: 'Intro' }] }, { id: 'F-02', decision: 'fix', reason: 'r' }]);
+  const [one] = recordOf(p, alias);
+  assert.equal(one.decision, 'keep');
+  assert.equal(one.guard, null);
+  assert.deepEqual(one.sources.map((s) => s.path), ['docs/prd.md', 'docs/prd.md']);
+});
+
 test('CLI table prints the Decisions section from decisions.yaml and the local titles', (t) => {
   const p = cliProject(t);
   fs.writeFileSync(path.join(p.root, '.ux-assessment/runs/2026-10-12/decisions.yaml'), YAML.stringify(AGENT_OUT));

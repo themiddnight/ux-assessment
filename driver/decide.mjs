@@ -13,6 +13,7 @@ import { isInside } from './paths.mjs';
 
 /** Documents saved from outside the repo (a drive, a wiki, a ticket) so that a `keep` can cite them. */
 export const SAVED_DOCS = '.ux-assessment/docs';
+const CHARTER = '.ux-assessment/charter.md';
 export const DEFAULT_DOCS = ['AGENTS.md', 'CLAUDE.md', 'README*', 'SPEC.md', 'PRD*', 'docs/**', `${SAVED_DOCS}/**`];
 const MAX_DOCS = 200;
 const DOC_EXT = /\.(md|mdx|txt|rst)$/i;
@@ -249,13 +250,23 @@ export function recordDecisions(project, run) {
   const file = decisionsFile(root, run);
   const todo = todoFindings(root, run);
   const { list, decidedAt } = readAgentDecisions(file);
-  const docs = new Set(resolveDocs(root, decideConfig(root).patterns).files.map((f) => path.resolve(root, f)));
+  const real = (p) => { try { return fs.realpathSync(p); } catch { return null; } };
+  const realRoot = real(root);
+  const docs = new Set(resolveDocs(root, decideConfig(root).patterns).files.map((f) => real(path.resolve(root, f))));
   const readFile = (p) => {
     const abs = path.resolve(root, p);
-    if (!isInside(root, abs) && !docs.has(abs)) throw new Error('not inside the project or a product document');
-    try { return fs.readFileSync(abs, 'utf8'); } catch (error) { throw new Error(error.code === 'ENOENT' ? 'file not found' : 'cannot be read'); }
+    const at = real(abs);
+    if (!at) throw new Error(isInside(root, abs) ? 'file not found' : 'not inside the project or a product document');
+    if (!isInside(realRoot, at) && !docs.has(at)) throw new Error('not inside the project or a product document');
+    const rel = slashed(path.relative(realRoot, at));
+    if (rel.startsWith('.ux-assessment/') && rel !== CHARTER && !rel.startsWith(`${SAVED_DOCS}/`)) throw new Error('not a citable file');
+    try { return fs.readFileSync(at, 'utf8'); } catch { throw new Error('cannot be read'); }
   };
-  const relPath = (p) => { const abs = path.resolve(root, p); return slashed(isInside(root, abs) ? path.relative(root, abs) : abs); };
+  const relPath = (p) => {
+    const abs = path.resolve(root, p);
+    const at = real(abs) ?? abs;
+    return slashed(isInside(root, abs) ? path.relative(root, abs) : isInside(realRoot, at) ? path.relative(realRoot, at) : abs);
+  };
   const { decisions, warnings } = checkDecisions({ decisions: list, todo, readFile, relPath });
   const doc = { run, decided_at: decidedAt ?? new Date().toISOString(), decisions };
   fs.writeFileSync(file, `# Written by ux-assessment driver/decide.mjs record from the decide agent's decisions.yaml\n${YAML.stringify(doc, { lineWidth: 0 })}`);
