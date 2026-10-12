@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import {
-  DECISIONS, SECTION_RE, BULLET_ID_RE, byId, checkRunName, evidenceFor, readDecisions, readFindings, rootOf, sourceRef,
+  DECISIONS, SECTION_RE, BULLET_ID_RE, byId, checkRunName, evidenceFor, hasApp, readDecisions, readFindings, rootOf, runKind, sourceRef,
 } from './ledger.mjs';
 import { configPath } from './models.mjs';
 import { isInside } from './paths.mjs';
@@ -122,15 +122,21 @@ export function decideConfig(project) {
   return { enabled: !off, patterns, defaults: docs == null };
 }
 
+const runDirOf = (project, run) => path.join(rootOf(project), 'runs', checkRunName(run));
+
+/** The decide step reads the app's source, and a design run has none. */
+const decidable = (project, run) => hasApp(runKind(runDirOf(project, run)));
+
 const readRunFindings = (project, run) => {
-  const file = path.join(rootOf(project), 'runs', checkRunName(run), 'findings.yaml');
+  const file = path.join(runDirOf(project, run), 'findings.yaml');
   if (!fs.existsSync(file)) throw new Error(`no findings.yaml for run ${run} (looked in ${file})`);
   return readFindings(fs.readFileSync(file, 'utf8'));
 };
 
-/** ux findings of the run that the agent still has to decide: not suppressed, no developer label in the ledger. */
+/** ux findings of the run that the agent still has to decide: not suppressed, no developer label in the ledger. None for a design run. */
 export function todoFindings(project, run) {
   const found = readRunFindings(project, run);
+  if (!decidable(project, run)) return [];
   const root = rootOf(project);
   const ledgerFile = path.join(root, 'ledger.yaml');
   const ledger = fs.existsSync(ledgerFile) ? YAML.parse(fs.readFileSync(ledgerFile, 'utf8')) : null;
@@ -263,7 +269,7 @@ export function decisionsTable(decisions, titles = {}) {
   return blocks.length ? `${blocks.join('\n\n')}\n` : 'No findings to decide.\n';
 }
 
-const decisionsFile = (project, run) => path.join(rootOf(project), 'runs', checkRunName(run), 'decisions.yaml');
+const decisionsFile = (project, run) => path.join(runDirOf(project, run), 'decisions.yaml');
 
 function readAgentDecisions(file) {
   if (!fs.existsSync(file)) throw new Error(`no decisions.yaml in ${path.dirname(file)}; the decide agent writes it`);
@@ -278,6 +284,7 @@ function readAgentDecisions(file) {
 export function recordDecisions(project, run) {
   const root = path.resolve(project);
   const file = decisionsFile(root, run);
+  if (!decidable(root, run)) throw new Error(`run ${run} is a design run, which has no app source to decide from`);
   const todo = todoFindings(root, run);
   const { list, decidedAt, checked } = readAgentDecisions(file);
   const real = (p) => { try { return fs.realpathSync(p); } catch { return null; } };

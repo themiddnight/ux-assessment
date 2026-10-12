@@ -107,6 +107,34 @@ test('markdown: the Needs you advice follows the rows there: an ask to answer, a
   assert.equal(next({ 'F-01': f('A', 'needs_review', agent('ask')) }), 'answer the findings under Needs you; verify again the ones whose screen changed');
 });
 
+test('a finding last seen in a design run carries (design) after its title in every group, in markdown and run_kind in the groups', () => {
+  const ledger = { runs: { '2026-10-12': { kind: 'persona' }, '2026-10-13': { kind: 'design' } }, findings: {
+    'F-01': f('App one', 'open', agent('fix')),
+    'F-02': f('Contrast', 'open', agent('fix'), { last_seen: '2026-10-13' }),
+    'F-03': f('Spacing', 'open', null, { last_seen: '2026-10-13' }),
+    'F-04': f('Label', 'needs_review', null, { last_seen: '2026-10-13' }),
+    'F-05': f('Old', 'fixed', null, { last_seen: '2026-10-13' }),
+  } };
+  const groups = boardGroups(ledger);
+  assert.deepEqual(groups.flatMap((g) => g.rows.map((r) => [r.id, r.run_kind])),
+    [['F-04', 'design'], ['F-01', undefined], ['F-02', 'design'], ['F-03', 'design'], ['F-05', 'design']]);
+  const text = boardMarkdown(groups);
+  assert.match(text, /^\| F-04 · Label \(design\) \| /m);
+  assert.match(text, /^\| F-02 · Contrast \(design\) \| /m);
+  assert.match(text, /^\| F-03 · Spacing \(design\) \| /m);
+  assert.match(text, /^\| F-01 · App one \| /m);
+});
+
+test('markdown: an undecided design finding is to be labelled, never decided; an app row keeps the Decide advice; a mixed group has both', () => {
+  const next = (findings) => /\nNext: (.*)\.\n$/.exec(boardMarkdown(boardGroups({ runs: { a: { kind: 'persona' }, d: { kind: 'design' } }, findings })))[1];
+  const app = f('App', 'open', null, { last_seen: 'a' });
+  const design = f('Design', 'open', null, { last_seen: 'd' });
+  assert.equal(next({ 'F-01': app }), 'run Decide on the run under Last seen for Not decided yet');
+  assert.equal(next({ 'F-01': design }), 'label the design findings under Not decided yet (Label findings)');
+  assert.equal(next({ 'F-01': app, 'F-02': design }),
+    'run Decide on the run under Last seen for Not decided yet; label the design findings under Not decided yet (Label findings)');
+});
+
 test('markdown: nothing on the board', () => {
   assert.equal(boardMarkdown(boardGroups({ findings: {} })), 'No findings on the board.\n');
   assert.equal(boardMarkdown(boardGroups({ findings: { 'F-01': f('A', 'fixed') } })), 'Closed: 1 fixed\n\nNext: nothing to do.\n');

@@ -143,6 +143,21 @@ export function checkRunName(run) {
 }
 export const rootOf = (project) => path.join(path.resolve(project), '.ux-assessment');
 
+/** 'design' when the run's run.json says so, 'persona' otherwise (no run.json, no kind or an unreadable file). */
+export function runKind(runDir) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(runDir, 'run.json'), 'utf8')).kind === 'design' ? 'design' : 'persona';
+  } catch {
+    return 'persona';
+  }
+}
+
+/** A design has no browser and no app source: its findings are neither rechecked nor decided. */
+export const hasApp = (kind) => kind !== 'design';
+
+/** The kind of the run a finding was last seen in. */
+const findingRunKind = (ledger, entry) => ledger.runs?.[entry.last_seen]?.kind ?? 'persona';
+
 function firstLogTime(runDir, warnings) {
   let min = null;
   for (const s of subdirs(runDir)) {
@@ -205,7 +220,7 @@ export function syncLedger(project) {
       } else if (fs.existsSync(findingsFile)) {
         const runJson = path.join(dir, 'run.json');
         const started = fs.existsSync(runJson) ? iso(JSON.parse(fs.readFileSync(runJson, 'utf8')).started_at) : null;
-        ledger.runs[name] = { kind: 'persona',
+        ledger.runs[name] = { kind: runKind(dir),
           started_at: started ?? ledger.runs[name]?.started_at ?? firstLogTime(dir, warnings) };
         const found = readFindings(fs.readFileSync(findingsFile, 'utf8'));
         replaceRunEvents(ledger, name, 'sightings', found.map((f) => [f.id, {
@@ -276,8 +291,11 @@ const BOARD_ORDER = ['needs_you', 'to_fix', 'kept', 'undecided', 'awaiting_check
 const BOARD_TITLES = { needs_you: 'Needs you', to_fix: 'To fix', kept: 'Kept', undecided: 'Not decided yet', awaiting_check: 'Waiting for a check' };
 const BOARD_NEXT = {
   to_fix: 'fix the findings under To fix, then verify them',
-  undecided: 'run Decide on the run under Last seen for Not decided yet', awaiting_check: 'verify again to confirm those under Waiting for a check',
+  awaiting_check: 'verify again to confirm those under Waiting for a check',
 };
+/** Decide refuses a design run, so a design finding is labelled instead; a group can hold both kinds. */
+const undecidedNext = (rows) => [rows.some((r) => r.run_kind !== 'design') && 'run Decide on the run under Last seen for Not decided yet',
+  rows.some((r) => r.run_kind === 'design') && 'label the design findings under Not decided yet (Label findings)'];
 /** Needs you holds asks and findings whose screen changed; each calls for a different step. */
 const needsYouNext = (rows) => [rows.some((r) => r.decision?.value === 'ask') && 'answer the findings under Needs you',
   rows.some((r) => r.status === 'needs_review') && 'verify again the ones whose screen changed'];
@@ -301,6 +319,7 @@ export function boardGroups(ledger) {
   for (const [id, e] of rows) {
     groups.find((g) => g.key === boardKey(e.status, e.decision)).rows.push({
       id, title: e.title_local || e.title, severity: e.severity, status: e.status, decision: e.decision ?? null, last_seen: e.last_seen ?? null,
+      ...(hasApp(findingRunKind(ledger, e)) ? {} : { run_kind: 'design' }),
     });
   }
   return groups;
@@ -320,14 +339,14 @@ export function boardMarkdown(groups) {
   for (const { key, rows } of groups) {
     if (!rows.length || key === 'closed') continue;
     blocks.push([`## ${BOARD_TITLES[key]} (${rows.length})`, '', '| Finding | Severity | Status | Decision | Last seen |', '|---|---|---|---|---|',
-      ...rows.map((r) => `| ${cell(`${r.id} · ${r.title}`)} | ${r.severity ?? ''} | ${STATUS_WORDS[r.status] ?? r.status} | ${cell(decisionCell(r.decision))} | `
+      ...rows.map((r) => `| ${cell(`${r.id} · ${r.title}${r.run_kind === 'design' ? ' (design)' : ''}`)} | ${r.severity ?? ''} | ${STATUS_WORDS[r.status] ?? r.status} | ${cell(decisionCell(r.decision))} | `
         + `${r.last_seen ? `[${r.last_seen}](.ux-assessment/runs/${r.last_seen}/report.md)` : ''} |`)].join('\n'));
   }
   const closed = groups.find((g) => g.key === 'closed')?.rows ?? [];
   const counts = CLOSED_STATUSES.map((s) => [closed.filter((r) => r.status === s).length, STATUS_WORDS[s]]).filter(([n]) => n).map(([n, w]) => `${n} ${w}`);
   if (counts.length) blocks.push(`Closed: ${counts.join(' · ')}`);
   if (!blocks.length) return 'No findings on the board.\n';
-  const next = groups.filter((g) => g.rows.length).flatMap((g) => (g.key === 'needs_you' ? needsYouNext(g.rows) : [BOARD_NEXT[g.key]])).filter(Boolean);
+  const next = groups.filter((g) => g.rows.length).flatMap((g) => (g.key === 'needs_you' ? needsYouNext(g.rows) : g.key === 'undecided' ? undecidedNext(g.rows) : [BOARD_NEXT[g.key]])).filter(Boolean);
   blocks.push(`Next: ${next.length ? next.join('; ') : 'nothing to do'}.`);
   return `${blocks.join('\n\n')}\n`;
 }
@@ -378,10 +397,21 @@ export function openFindings(project, { needsReview = false } = {}) {
   const ledger = loadLedger(project);
   const wanted = needsReview ? [...OPEN_STATUSES, 'needs_review'] : OPEN_STATUSES;
   return Object.entries(ledger.findings)
-    .filter(([, e]) => e.kind === 'ux' && e.sightings.length && wanted.includes(e.status))
+    .filter(([, e]) => e.kind === 'ux' && e.sightings.length && wanted.includes(e.status) && hasApp(findingRunKind(ledger, e)))
     .map(([id, e]) => ({ id, title: e.title, severity: e.severity, status: e.status, last_seen: e.last_seen,
       what_happened: e.sightings.at(-1).what_happened, check: e.check, ...evidenceFor(root, id, e) }))
     .sort((a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3) || byId(a.id, b.id));
+}
+
+/** A verifier needs a browser: a named finding of a design run cannot be rechecked. No ledger yet means nothing is known. */
+export function checkRecheckable(project, ids) {
+  const file = path.join(rootOf(project), 'ledger.yaml');
+  if (!fs.existsSync(file)) return;
+  const ledger = readYaml(file) ?? {};
+  for (const id of ids) {
+    const e = ledger.findings?.[id];
+    if (e && !hasApp(findingRunKind(ledger, e))) throw new Error(`${id} was found in a design run, which has no app to recheck it against`);
+  }
 }
 
 export function verifyTable(project, run) {

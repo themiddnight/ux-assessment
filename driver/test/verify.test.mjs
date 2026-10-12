@@ -173,6 +173,25 @@ test('--run is a folder name: a value with a path separator fails with a clear m
   assert.match(cli.stderr, /--run takes the run folder name, such as 2026-09-29-verify, not a path \(got "runs\/2026-09-29-verify"\)/);
 });
 
+test('record: a named finding of a design run fails with a one-line error, before anything is written; an app finding passes', async (t) => {
+  const { root, put } = project(t);
+  put('runs/2026-09-28/findings.yaml', '- id: F-01\n  title: "App one"\n  kind: ux\n  evidence: []\n');
+  put('runs/2026-09-29/findings.yaml', '- id: F-11\n  title: "Contrast"\n  kind: ux\n  evidence: []\n');
+  put('runs/2026-09-29/run.json', JSON.stringify({ kind: 'design' }));
+  syncLedger(root);
+  const run = 'runs/2026-09-30-verify';
+  put(`${run}/F-01/summary.md`, block('id: F-01\nverdict: reproduced\n'));
+  assert.equal(recordVerifyRun(root, '2026-09-30-verify').results.length, 1);
+  fs.rmSync(path.join(root, '.ux-assessment', run, 'verify.yaml'));
+  put(`${run}/F-11/summary.md`, block('id: F-11\nverdict: reproduced\n'));
+  const message = 'F-11 was found in a design run, which has no app to recheck it against';
+  assert.throws(() => recordVerifyRun(root, '2026-09-30-verify'), { message });
+  assert.equal(fs.existsSync(path.join(root, '.ux-assessment', run, 'verify.yaml')), false);
+  const cli = await promisify(execFile)(process.execPath, [VERIFY, 'record', root, '--run', '2026-09-30-verify']).then(() => null, (e) => e);
+  assert.equal(cli.code, 1);
+  assert.equal(cli.stderr, `${message}\n`);
+});
+
 test('check-state: an expired saved login is reported before any session starts', (t) => {
   const dir = tempDir(t, 'uxa-state-');
   const file = path.join(dir, 'main.json');

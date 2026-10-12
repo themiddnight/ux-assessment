@@ -39,7 +39,9 @@ the same way unattended.
      they answer those; rows there whose status says the screen changed: Verify fixes, which
      checks them again;
    - rows that are undecided: Decide on the run in their Last seen column
-     (`/ux-assessment:decide <run folder name>`; without a name it takes the latest run only);
+     (`/ux-assessment:decide <run folder name>`; without a name it takes the latest run only).
+     A row marked "(design)" is the exception: Decide refuses a design run, so `/ux-assessment` →
+     Label findings is the step for it;
    - rows to fix: fix them, then `/ux-assessment` → Verify fixes;
    - rows awaiting a check: Verify fixes once more, because a finding counts as fixed only after
      two separate checks did not see it;

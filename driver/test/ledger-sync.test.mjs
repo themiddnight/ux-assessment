@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
-import { syncLedger, openFindings, verifyTable, statusLines } from '../ledger.mjs';
+import { syncLedger, openFindings, verifyTable, statusLines, boardGroups } from '../ledger.mjs';
 
 const LEDGER = fileURLToPath(new URL('../ledger.mjs', import.meta.url));
 
@@ -50,6 +50,21 @@ function seedPersonaRun(p, name = '2026-09-25', body = RUN_0925, t = 17903000000
   p.put(`runs/${name}/phone/log.jsonl`, `${JSON.stringify({ t, step: null, screenshot: 'screenshots/s01.png' })}\n`);
   p.put(`runs/${name}/phone/signals.jsonl`, `${JSON.stringify({ t, step: 0, type: 'setup',
     url: 'http://localhost:3000/items?view=list', viewport: { width: 360, height: 640 } })}\n`);
+}
+
+const DESIGN_FINDINGS = `- id: F-11
+  title: "Primary button is low contrast"
+  kind: ux
+  severity: high
+  evidence: [viewer/screenshots/v01.png]
+  what_happened: "The Save label is hard to read."
+`;
+
+function seedDesignRun(p, name = '2026-09-26', runJson = { kind: 'design', started_at: '2026-09-26T08:00:00.000Z' }) {
+  p.put(`runs/${name}/findings.yaml`, DESIGN_FINDINGS);
+  p.put(`runs/${name}/run.json`, JSON.stringify(runJson));
+  p.put(`runs/${name}/viewer/screenshots/v01.png`, 'png');
+  p.put(`runs/${name}/viewer/design-log.jsonl`, `${JSON.stringify({ t: 1790400000000, frame: 'v01' })}\n`);
 }
 
 const verifyRun = (p, name, startedAt, results) =>
@@ -328,4 +343,54 @@ test('decision: a decision whose id is not among that run\'s findings is dropped
   assert.deepEqual(l.findings['F-02'].decisions, []);
   assert.equal(l.findings['F-05'].decision.run, '2026-09-28');
   assert.equal(l.findings['F-01'].decision.value, 'keep');
+});
+
+test('a run whose run.json says kind design is recorded as design, with started_at from run.json and no log.jsonl needed', () => {
+  const p = makeProject();
+  seedDesignRun(p);
+  const { warnings } = syncLedger(p.root);
+  assert.deepEqual(warnings, []);
+  const l = p.ledger();
+  assert.deepEqual(l.runs, { '2026-09-26': { kind: 'design', started_at: '2026-09-26T08:00:00.000Z' } });
+  assert.equal(l.findings['F-11'].last_seen, '2026-09-26');
+  assert.equal(l.findings['F-11'].status, 'open');
+  seedDesignRun(p, '2026-09-27', { kind: 'design' });
+  syncLedger(p.root);
+  assert.deepEqual(p.ledger().runs['2026-09-27'], { kind: 'design', started_at: null });
+});
+
+test('an app run whose run.json has no kind, or no run.json, is still recorded as persona and gains no new field', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/run.json', JSON.stringify({ url: 'http://localhost:3000/', started_at: '2026-09-25T07:00:00.000Z' }));
+  seedPersonaRun(p, '2026-09-26');
+  syncLedger(p.root);
+  const l = p.ledger();
+  assert.deepEqual(l.runs, { '2026-09-25': { kind: 'persona', started_at: '2026-09-25T07:00:00.000Z' },
+    '2026-09-26': { kind: 'persona', started_at: new Date(1790300000000).toISOString() } });
+  assert.deepEqual(Object.keys(l.findings['F-01']), ['title', 'title_local', 'kind', 'severity', 'status', 'label', 'decision', 'last_seen',
+    'check', 'sightings', 'verifications', 'decisions']);
+});
+
+test('open and the board tell a design finding from an app finding; open leaves it out, even with --needs-review', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  seedDesignRun(p);
+  syncLedger(p.root);
+  assert.deepEqual(openFindings(p.root).map((f) => f.id), ['F-02', 'F-01']);
+  assert.deepEqual(openFindings(p.root, { needsReview: true }).map((f) => f.id), ['F-02', 'F-01']);
+  const rows = boardGroups(p.ledger()).find((g) => g.key === 'undecided').rows;
+  assert.deepEqual(rows.map((r) => [r.id, r.run_kind]), [['F-02', undefined], ['F-11', 'design'], ['F-01', undefined]]);
+});
+
+test('sync is idempotent with an app run, a design run and a verify run together', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  seedDesignRun(p);
+  verifyRun(p, '2026-09-28-verify', '2026-09-28T09:00:00.000Z', [{ id: 'F-01', verdict: 'reproduced', at_step: 2, evidence: [], note: '' }]);
+  syncLedger(p.root);
+  const first = p.ledgerText();
+  syncLedger(p.root);
+  assert.equal(p.ledgerText(), first);
+  assert.deepEqual(Object.values(p.ledger().runs).map((r) => r.kind), ['persona', 'design', 'verify']);
 });

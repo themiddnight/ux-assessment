@@ -190,6 +190,19 @@ test('todoFindings: a screenshot path that leaves .ux-assessment is dropped with
   assert.match(err, /ledger: warning: F-01 evidence "\.\.\/\.\.\/\.\.\/secret\.png" is outside \.ux-assessment, dropped/);
 });
 
+test('todoFindings: a design run has nothing to decide, an app run in the same project still has', (t) => {
+  const p = project(t);
+  seedRun(p);
+  seedRun(p, '2026-10-13');
+  p.ux('runs/2026-10-13/run.json', JSON.stringify({ kind: 'design' }));
+  seedRun(p, '2026-10-14');
+  p.ux('runs/2026-10-14/run.json', JSON.stringify({ url: 'http://localhost:3000/' }));
+  assert.deepEqual(todoFindings(p.root, '2026-10-13'), []);
+  assert.deepEqual(todoFindings(p.root, '2026-10-12').map((f) => f.id), ['F-01', 'F-02', 'F-04', 'F-05']);
+  assert.deepEqual(todoFindings(p.root, '2026-10-14').map((f) => f.id), ['F-01', 'F-02', 'F-04', 'F-05']);
+  assert.throws(() => todoFindings(p.root, '2026-10-15'), /no findings\.yaml for run 2026-10-15/);
+});
+
 test('todoFindings: no ledger yet means no labels; a missing run is an error', (t) => {
   const p = project(t);
   seedRun(p);
@@ -642,6 +655,20 @@ test('CLI table prints the Decisions section from decisions.yaml and the local t
     '### Kept (1)', '',
     '- F-01 · บันทึกแล้วไม่มีอะไรบอก — docs/prd.md:3 — The PRD says so.', '',
   ].join('\n'));
+});
+
+test('CLI: a design run lists nothing under todo, and record fails with a one-line error', (t) => {
+  const p = cliProject(t);
+  seedRun(p, '2026-10-13');
+  p.ux('runs/2026-10-13/run.json', JSON.stringify({ kind: 'design' }));
+  p.ux('runs/2026-10-13/decisions.yaml', YAML.stringify(AGENT_OUT));
+  const todo = run(['todo', p.root, '--run', '2026-10-13']);
+  assert.equal(todo.status, 0);
+  assert.deepEqual(JSON.parse(todo.stdout).findings, []);
+  const record = run(['record', p.root, '--run', '2026-10-13']);
+  assert.equal(record.status, 1);
+  assert.equal(record.stderr, 'run 2026-10-13 is a design run, which has no app source to decide from\n');
+  assert.equal(YAML.parse(fs.readFileSync(path.join(p.root, '.ux-assessment/runs/2026-10-13/decisions.yaml'), 'utf8')).checked, undefined);
 });
 
 test('CLI errors: usage, a run that is a path, a missing decisions.yaml, a broken one', (t) => {

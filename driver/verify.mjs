@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
-import { byId, checkRunName } from './ledger.mjs';
+import { byId, checkRecheckable, checkRunName } from './ledger.mjs';
 import { count } from './usage.mjs';
 
 export const VERDICTS = ['reproduced', 'not_reproduced', 'unreachable', 'changed'];
@@ -65,6 +65,7 @@ export function recordVerifyRun(project, run, { cli = null, url = null, startedA
   const before = new Map((Array.isArray(previous?.results) ? previous.results : []).filter((r) => r?.id).map((r) => [r.id, r]));
   const ids = fs.readdirSync(runDir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && ID_RE.test(d.name)).map((d) => d.name).sort(byId);
+  checkRecheckable(project, ids);
   let first = null;
   const results = ids.map((id) => {
     const dir = path.join(runDir, id);
