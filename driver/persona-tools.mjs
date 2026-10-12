@@ -83,7 +83,7 @@ export function registerPersonaTools(server, session, { waitCap = 10 } = {}) {
 export function registerSignalsTool(server, session) {
   server.registerTool('harness_signals', {
     title: 'Harness: what actually happened',
-    description: 'For the orchestrator and the verifier; a persona never gets this tool. Step count, frustration, audio stats, file/download/picker events, page errors, OPFS files.',
+    description: 'For the orchestrator and the verifier; a persona never gets this tool. Step count, frustration, audio stats, file/download/picker events, page errors, OPFS files. For a viewer session (harness_design_start): where it stands, views and the reason it ended.',
     inputSchema: { session: z.string() },
   }, safe(async ({ session: id }) => text(JSON.stringify(await session(id).signals(), null, 2))));
 }

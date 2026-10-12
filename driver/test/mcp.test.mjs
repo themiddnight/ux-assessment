@@ -26,7 +26,7 @@ const step = (session, action, extra = {}) => ({
 test('lists exactly the persona and harness tools', async () => {
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((t) => t.name).sort(),
-    ['act', 'end_session', 'harness_eval', 'harness_save_state', 'harness_signals', 'harness_start', 'harness_stop']);
+    ['act', 'answer', 'end_session', 'harness_design_start', 'harness_eval', 'harness_save_state', 'harness_signals', 'harness_start', 'harness_stop', 'view']);
   const start = tools.find((t) => t.name === 'harness_start');
   for (const k of ['safety', 'files', 'permissions', 'storage_state']) assert.ok(start.inputSchema.properties[k], k);
   assert.deepEqual(start.inputSchema.required.sort(), ['dir', 'session', 'url']);
