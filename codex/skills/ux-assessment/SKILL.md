@@ -17,6 +17,11 @@ Communicate in the user's language; internal artifacts stay in English.
 Wherever you tell the user about a finding, write its id with its title:
 `F-03 · <title_local>` (`title` when a finding has no `title_local`). Never an id alone.
 
+**Design mode is not supported on Codex yet.** It assesses a Figma file or a folder of PNG files,
+and it runs on Claude Code only. When the request holds a Figma link (a URL on `figma.com`) or
+`design` as an argument word, say so in one sentence and stop. Do not run an app assessment in
+its place.
+
 ## Isolation rule
 
 Do not run persona sessions in ordinary Codex subagents. They inherit broad

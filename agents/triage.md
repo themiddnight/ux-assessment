@@ -11,7 +11,15 @@ language, the paths of `charter.md`, `personas.md` and the plan, the ledger path
 the run was unattended, and a **suppress** list: finding titles the developer labelled "won't fix"
 (or "none").
 
-**First read the triage rules file and follow it exactly.** Then:
+**First read the triage rules file and follow it exactly.**
+
+**A design run.** When the briefing says "This is a design run", the rules file is
+`knowledge/design.md`: follow its Part 2 and the files it names, in place of steps 1 to 3 below.
+There are no persona logs. Read `design-results.json` and `perception.jsonl` in the run folder
+instead, never `design-log.jsonl`, and do not run `expectations.mjs`. Give no code pointer and
+no `check`. Steps 4 to 6 and the last two paragraphs hold, with the report layout of that file.
+
+For every other run:
 
 1. For each persona folder in the run: read `summary.md`, `log.jsonl` and `signals.jsonl` (for a
    large log, use the Grep tool to find the lines, then Read with `offset`/`limit`, not the whole

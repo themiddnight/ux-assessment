@@ -81,6 +81,12 @@ test('formatReport: the decide agent is its own row, after triage', () => {
   assert.deepEqual(rows.slice(1), ['orchestrator', 'persona', 'triage', 'decide']);
 });
 
+test('formatReport: a design run lists viewers right after personas', () => {
+  const rows = formatReport([rec({ role: 'viewer', id: 'v1', model: 'claude-sonnet-5-5', input: 10, output: 5 }), ...RECORDS], '2026-09-29')
+    .split('\n').filter((l) => l.startsWith('| ') && !l.startsWith('| **')).map((l) => l.split(' | ')[0].slice(2));
+  assert.deepEqual(rows.slice(1), ['orchestrator', 'persona', 'viewer', 'triage']);
+});
+
 test('formatReport: no orchestrator row says not measured; no records says so', () => {
   const codexOnly = [rec({ harness: 'codex', source: 'codex-json', model: 'gpt-6-sol', input: 100 })];
   assert.match(formatReport(codexOnly, '2026-09-29'), /\nOrchestrator: not recorded yet .*run this report again afterwards.*\n/);

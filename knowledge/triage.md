@@ -99,6 +99,7 @@ id: F-03
 title: "No visual sign that sound is playing"
 title_local: "ไม่มีอะไรบอกว่าเสียงกำลังเล่น"   # the title in the report language
 kind: ux                # ux | agent_error | env_error
+source: persona         # persona | instrument | comprehension (what the finding rests on; see below)
 confidence: signal      # signal | watch | noise
 severity: high
 personas: [casual-curious, core-beatmaker]
@@ -118,6 +119,18 @@ expectation: null       # dead_control | unexpected_result | control_unpredictab
 suppressed: false       # true when it matches the suppress list, or an intended behavior at no goal cost
 intended: null          # the charter's intended behavior it matches, if any
 ```
+
+`source` says what a finding rests on: `persona` (what a persona did and said in a live app),
+`instrument` (a value measured by code) or `comprehension` (a viewer's answers about a design). A
+record without `source` is read as `persona`. An app run writes `persona`. Precision is counted
+per source: a figure for one source says nothing about the other two.
+
+**Design runs** (SPEC D36 to D39). When the briefing says "This is a design run", the rules are in
+`knowledge/design.md`, Part 2, not in §1, §2, §7 and §8 of this file: its inputs are
+`design-results.json` and `perception.jsonl`, its findings carry `source: instrument` or
+`source: comprehension`, and they have no `code_pointer` and no `check`. In an app run, never
+reuse the id of a ledger finding that was last seen in a design run (`runs.<name>.kind: design`):
+take the next free number.
 
 `title` is English, as every internal file is. `title_local` is the same title in the report
 language, and equals `title` when the report is in English. Every record has both.

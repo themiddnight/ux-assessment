@@ -224,7 +224,7 @@ export function selectRun(records, run) {
   return [...additive, ...latest.values()];
 }
 
-const ROLE_ORDER = ['orchestrator', 'recon', 'persona', 'verifier', 'triage', 'decide'];
+const ROLE_ORDER = ['orchestrator', 'recon', 'persona', 'viewer', 'verifier', 'triage', 'decide'];
 const rank = (role) => (ROLE_ORDER.includes(role) ? ROLE_ORDER.indexOf(role) : ROLE_ORDER.length);
 
 /** Role × model rows; `input` includes cache writes (the headline folds them in); `sessions` = distinct ids. */

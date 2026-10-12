@@ -83,6 +83,34 @@ changes unless a step says so. Unattended hard rules:
 - Never edit `.gitignore`. Never log in by hand (see step 5).
 - The report starts with the assumption list (triage is told in step 9).
 
+**App or design** (SPEC D36). Decide the mode next, before the state menu. Read the request and
+its arguments as one text. When the text does not contain `figma.com`, do not run the command
+below: the kind is `none`. Otherwise take only the words of that text that contain `figma.com`
+(a word ends at a space), take out of each every double quote, backtick, dollar sign and
+backslash (no Figma link holds one), and run
+`node "$PLUGIN/driver/figma.mjs" parse-url "<words>"`, where `<words>` is those words on one
+line. If the command fails, the kind is `none` and the run is an app run. It prints
+`{"kind": "design" | "proto", "file_key", "node_id", "start_node_id"}` for a Figma link,
+`{"kind": "unsupported", "reason"}` for a Figma link this plugin cannot use, or `{"kind": "none"}`.
+The command decides what a Figma link is. Never decide that by reading a URL yourself. Then take
+the first row that fits:
+
+| The request holds | Mode |
+|---|---|
+| `app` as an argument word | app, whatever else is given |
+| A Figma link (`kind` is `design` or `proto`) and another URL | Ask which one to run. Unattended: stop and say so. |
+| A Figma link | design |
+| `kind: unsupported` and no other URL | Stop. Tell the user the `reason`. |
+| A path to an existing folder that holds PNG files and no `package.json` (check with the Glob tool), and the request holds no URL (no text that starts with `http://` or `https://`) | design, from that folder |
+| `design` as an argument word, and no URL | design. Ask for the link or the folder. Unattended: stop and say so. |
+| Anything else | app, as before |
+
+Print one line that names the mode and why, before anything else. App: "App mode: no Figma link or
+PNG folder in the request." Design: "Design mode: the request has a Figma link." (or "a folder of
+PNG files", or "the word design"), then "Design mode is experimental: it has never been run on a
+real Figma file." **Design mode: go to section D now.**
+Steps 1 to 10 and the URL rule above are for app runs. App mode: continue below.
+
 **State menu** (SPEC D20). No `.ux-assessment/` → full flow. It exists → ask:
 **New run** (recommended; reuses app-profile, charter and personas if present — go to step 5) ·
 **Label findings** (step 11) ·
@@ -309,6 +337,8 @@ subscription. Then **offer** (ask, do not edit) to add to
 .ux-assessment/usage.jsonl
 .ux-assessment/docs/
 .ux-assessment/active-run
+.ux-assessment/design/cache/
+.ux-assessment/runs/*/*/design-log.jsonl
 ```
 
 Finally, attended: offer **Label findings now** · **Later**.
@@ -361,6 +391,45 @@ charter's `## Intended behaviors` (template in `knowledge/charter.md`; add the h
 
 Later triage then lists such a behavior as working as intended unless it costs a persona the goal.
 Labels persist across runs: a later `?` does not clear them; to undo "not real" or "won't fix", write `valid`.
+
+## D. Design mode (experimental, SPEC D36 to D39)
+
+Assesses a Figma file or a folder of PNG files. Viewer agents (`ux-assessment:viewer`) each see
+one screen or one flow of the design as pictures and answer fixed questions. Code measures the
+screens and judges the clicks. There is no browser, no app URL and no recon.
+
+**It is experimental.** The code is tested against fixtures written from Figma's documentation.
+It has never been run on a real Figma file, and no result of it has been checked against real
+users. Say so in the first line (section 0) and whenever you tell the user a result. A failure is
+expected news: point the user to the "Design mode report" issue form of the plugin's repository.
+
+Read `$PLUGIN/knowledge/design.md` now and follow it step by step. It holds the whole pipeline:
+source, snapshot, frames, tier, personas, viewers, judge, triage, report. Read
+`$PLUGIN/knowledge/perception.md` when it tells you to. The rules at the top of this file still
+hold: the user's language, the id rule (`F-03 · <title_local>`), tokens. A viewer uses the model
+of the `claude persona` line of `models.mjs show`. Knowledge isolation holds for viewers as it
+does for personas: a viewer gets only the briefing of `knowledge/design.md`.
+
+**State menu.** When `.ux-assessment/` exists, ask as section 0 says, with these changes:
+
+| Entry | In design mode |
+|---|---|
+| New run | `knowledge/design.md` from its step 1. Reuses `personas.md` and `design/key.yaml` if present. |
+| Start over | The same, but make the personas and `design/key.yaml` again. Keep `runs/` and `feedback.md`. |
+| Label findings | Step 11, unchanged. Design findings have no decision, so every one is reviewed one by one. |
+| Show results | Unchanged. The board marks a design finding "(design)". |
+| Re-run triage | On a design run (`run.json` has `"kind": "design"`): run `knowledge/design.md` from its judge step. Delete no `decisions.yaml`: there is none. |
+| Verify fixes | Lists no design finding. A design has no app to recheck. Offer it only for the findings of app runs. |
+| Decide | Skipped for a design run. It reads the app's source, and a design has none. |
+| Settings | Unchanged. |
+
+**Unattended** (section 0 decides whether it is on). No question is asked. Rules for design mode:
+- The Figma link or the PNG folder must be in the arguments or the request. None → stop and say so.
+- A Figma link plus an app URL → stop and say so.
+- The tier comes from an existing `.ux-assessment/design/key.yaml`. Without one the tier is `blind`.
+- Never call `use_figma`.
+- A choice `knowledge/design.md` gives to the user takes its unattended answer there.
+- Never edit `.gitignore`. The report starts with the list of assumptions made.
 
 ## V. Verify fixes (SPEC D15 verify-only)
 

@@ -50,6 +50,7 @@ native_language: th
 ui_language_proficiency: {en: low, th: native}
 patience_budget: 6                 # frustration points before quitting (casual 4–6, core 8–12)
 reading_style: skim                # read-all | skim | icons-only
+vision: normal                     # normal | low (design mode only; app runs ignore it)
 perception: screenshot             # screenshot | a11y-tree (a11y-tree: not in the driver yet)
 device: {viewport: desktop, network: normal}   # viewport: desktop | mobile-small
 context: "On the bus, sound off, interrupted often"
@@ -59,6 +60,10 @@ start_state: newcomer              # newcomer | returning
 account: main                      # returning only: an account id in secrets.local.yaml
 quit_triggers: ["asked to sign up before seeing anything", "nothing happens after tapping"]
 ```
+
+`vision` defaults to `normal`. Set `low` for a card built from the "Low vision" condition. In
+design mode it raises the contrast threshold for that card's viewers
+(`knowledge/perception.md`). App runs ignore the field.
 
 Step cap per session: the config `cap`, 30 by default (two thirds of it for casual personas: they do not stay long anyway).
 
