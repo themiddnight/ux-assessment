@@ -208,3 +208,96 @@ test('open --needs-review adds the needs_review findings a user may Pick; plain 
   const { stdout } = await promisify(execFile)(process.execPath, [LEDGER, 'open', p.root, '--needs-review']);
   assert.deepEqual(JSON.parse(stdout).map((f) => f.id), ['F-02', 'F-01']);
 });
+
+const THAI = `- id: F-01
+  title: "Save is silent"
+  title_local: "บันทึกแล้วไม่มีอะไรบอก"
+  kind: ux
+  severity: medium
+  evidence: []
+- id: F-02
+  title: "Jargon on landing"
+  kind: ux
+  severity: high
+  evidence: []
+`;
+
+test('title_local is kept on the sighting and the finding, falls back to title, and status and table print it', () => {
+  const p = makeProject();
+  seedPersonaRun(p, '2026-09-25', THAI);
+  verifyRun(p, '2026-09-26-verify', '2026-09-26T10:00:00.000Z', [{ id: 'F-01', verdict: 'reproduced', evidence: [], note: '' }]);
+  syncLedger(p.root);
+  const l = p.ledger();
+  assert.equal(l.findings['F-01'].title_local, 'บันทึกแล้วไม่มีอะไรบอก');
+  assert.equal(l.findings['F-01'].title, 'Save is silent');
+  assert.equal(l.findings['F-01'].sightings[0].title_local, 'บันทึกแล้วไม่มีอะไรบอก');
+  assert.equal(l.findings['F-02'].title_local, 'Jargon on landing');
+  assert.equal(l.findings['F-02'].sightings[0].title_local, 'Jargon on landing');
+  assert.match(statusLines(p.root), /^F-01\tstill_present\tบันทึกแล้วไม่มีอะไรบอก$/m);
+  assert.match(statusLines(p.root), /^F-02\topen\tJargon on landing$/m);
+  assert.match(verifyTable(p.root, '2026-09-26-verify'), /^\| F-01 บันทึกแล้วไม่มีอะไรบอก \| reproduced \|/m);
+});
+
+const decisionsYaml = (run, decisions) => YAML.stringify({ run, decided_at: '2026-10-12T09:30:00.000Z', decisions });
+const KEEP = { id: 'F-01', decision: 'keep', reason: 'The PRD says so.', options: [],
+  sources: [{ path: 'docs/prd.md', line: 42, quote: 'Save is silent on purpose' }], guard: null };
+const ASK = { id: 'F-02', decision: 'ask', reason: 'Docs and code disagree.', options: ['Rename it', 'Keep the jargon'], sources: [], guard: null };
+
+test('decision: the latest run that has one wins, by the run order; the shape is {value, by, reason, sources, options, run}', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/decisions.yaml', decisionsYaml('2026-09-25', [KEEP, ASK]));
+  seedPersonaRun(p, '2026-09-28', RUN_0925, Date.parse('2026-09-28T08:00:00Z'));
+  p.put('runs/2026-09-28/decisions.yaml', decisionsYaml('2026-09-28', [{ ...ASK, id: 'F-01', options: ['Add a toast'] }]));
+  syncLedger(p.root);
+  const l = p.ledger();
+  assert.deepEqual(l.findings['F-01'].decision, { value: 'ask', by: 'agent', reason: 'Docs and code disagree.',
+    sources: [], options: ['Add a toast'], run: '2026-09-28' });
+  assert.deepEqual(l.findings['F-02'].decision, { value: 'ask', by: 'agent', reason: 'Docs and code disagree.',
+    sources: [], options: ['Rename it', 'Keep the jargon'], run: '2026-09-25' });
+  assert.equal(l.findings['E-01'].decision, null);
+});
+
+test('decision: a developer label wins; valid is fix, won\'t fix is keep, not real is none', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/decisions.yaml', decisionsYaml('2026-09-25', [KEEP, ASK, { ...ASK, id: 'E-01' }]));
+  p.put('feedback.md', '## Run 2026-09-25\n- F-01 Save is silent — label: valid — note: users missed it\n'
+    + "- F-02 Jargon — label: won't fix — note:\n- E-01 Shim — label: not real — note:\n");
+  syncLedger(p.root);
+  const l = p.ledger();
+  assert.deepEqual(l.findings['F-01'].decision, { value: 'fix', by: 'human', reason: 'users missed it', sources: [], options: [], run: '2026-09-25' });
+  assert.equal(l.findings['F-02'].decision.value, 'keep');
+  assert.equal(l.findings['F-02'].decision.by, 'human');
+  assert.equal(l.findings['E-01'].decision, null);
+});
+
+test('decision never changes the status; it survives a deleted run folder and stays idempotent', () => {
+  const plain = makeProject();
+  seedPersonaRun(plain);
+  syncLedger(plain.root);
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/decisions.yaml', decisionsYaml('2026-09-25', [KEEP, ASK]));
+  syncLedger(p.root);
+  for (const id of ['F-01', 'F-02', 'E-01']) assert.equal(p.ledger().findings[id].status, plain.ledger().findings[id].status, id);
+  const first = p.ledgerText();
+  syncLedger(p.root);
+  assert.equal(p.ledgerText(), first);
+  fs.rmSync(path.join(p.root, '.ux-assessment/runs'), { recursive: true });
+  syncLedger(p.root);
+  assert.equal(p.ledger().findings['F-01'].decision.value, 'keep');
+  assert.equal(p.ledger().findings['F-01'].decision.sources[0].path, 'docs/prd.md');
+});
+
+test('decision: removing decisions.yaml from a present run removes its decision; a bare list and a bad value are read leniently', () => {
+  const p = makeProject();
+  seedPersonaRun(p);
+  p.put('runs/2026-09-25/decisions.yaml', YAML.stringify([KEEP, { ...ASK, decision: 'maybe' }]));
+  syncLedger(p.root);
+  assert.equal(p.ledger().findings['F-01'].decision.value, 'keep');
+  assert.equal(p.ledger().findings['F-02'].decision, null);
+  fs.rmSync(path.join(p.root, '.ux-assessment/runs/2026-09-25/decisions.yaml'));
+  syncLedger(p.root);
+  assert.equal(p.ledger().findings['F-01'].decision, null);
+});

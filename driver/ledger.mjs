@@ -83,6 +83,15 @@ export function readFindings(text) {
     .map((f) => ({ ...f, kind: f.kind ?? f.category ?? 'ux' }));
 }
 
+export const DECISIONS = ['fix', 'keep', 'ask'];
+
+/** The decide agent's decisions.yaml: {decisions: [...]} or a bare list. Not yet checked: `decide.mjs record` does that. */
+export function readDecisions(text) {
+  const doc = YAML.parse(text);
+  const list = Array.isArray(doc) ? doc : Array.isArray(doc?.decisions) ? doc.decisions : [];
+  return list.filter((d) => d && typeof d.id === 'string');
+}
+
 const usable = (e) => e.type === 'sighting' || e.verdict === 'reproduced' || e.verdict === 'changed'
   || (e.verdict === 'not_reproduced' && Number.isInteger(e.at_step));
 
@@ -129,7 +138,7 @@ export function checkRunName(run) {
   }
   return name;
 }
-const rootOf = (project) => path.join(path.resolve(project), '.ux-assessment');
+export const rootOf = (project) => path.join(path.resolve(project), '.ux-assessment');
 
 function firstLogTime(runDir, warnings) {
   let min = null;
@@ -157,6 +166,16 @@ function replaceRunEvents(ledger, run, field, pairs) {
 
 const runOrder = (runs) => Object.entries(runs)
   .map(([name, r]) => ({ name, started_at: r.started_at ?? null })).sort(compareRuns).map((r) => r.name);
+
+/** A developer label wins (`not real` leaves nothing to decide); otherwise the latest run's decision, which is the agent's. */
+function decisionOf(label, decisions) {
+  const human = (value) => ({ value, by: 'human', reason: label.note ?? '', sources: [], options: [], run: label.run });
+  if (label?.value === 'valid') return human('fix');
+  if (label?.value === "won't fix") return human('keep');
+  if (label?.value === 'not real') return null;
+  const d = decisions.at(-1);
+  return d ? { value: d.value, by: 'agent', reason: d.reason, sources: d.sources, options: d.options, run: d.run } : null;
+}
 
 export function syncLedger(project) {
   const root = rootOf(project);
@@ -186,10 +205,16 @@ export function syncLedger(project) {
         ledger.runs[name] = { kind: 'persona',
           started_at: started ?? ledger.runs[name]?.started_at ?? firstLogTime(dir, warnings) };
         replaceRunEvents(ledger, name, 'sightings', readFindings(fs.readFileSync(findingsFile, 'utf8')).map((f) => [f.id, {
-          run: name, title: f.title ?? '', kind: f.kind, severity: f.severity ?? null, confidence: f.confidence ?? null,
+          run: name, title: f.title ?? '', title_local: f.title_local ?? f.title ?? '', kind: f.kind, severity: f.severity ?? null, confidence: f.confidence ?? null,
           personas: f.personas ?? [], evidence: f.evidence ?? [], what_happened: f.what_happened ?? '',
           check: f.check ?? null, suppressed: f.suppressed === true,
         }]));
+        const decisionsFile = path.join(dir, 'decisions.yaml');
+        replaceRunEvents(ledger, name, 'decisions', !fs.existsSync(decisionsFile) ? []
+          : readDecisions(fs.readFileSync(decisionsFile, 'utf8')).filter((d) => DECISIONS.includes(d.decision)).map((d) => [d.id, {
+            run: name, value: d.decision, reason: String(d.reason ?? ''), sources: Array.isArray(d.sources) ? d.sources : [],
+            options: Array.isArray(d.options) ? d.options.map(String) : [],
+          }]));
       }
     } catch (error) {
       warnings.push(`runs/${name}: ${error.message.split('\n')[0]} (kept the ledger's earlier events for this run)`);
@@ -215,16 +240,17 @@ export function syncLedger(project) {
     const e = ledger.findings[id];
     const sightings = sortEvents(e.sightings ?? []);
     const verifications = sortEvents(e.verifications ?? []);
+    const decisions = sortEvents(e.decisions ?? []);
     const last = sightings.at(-1);
     const events = [
       ...sightings.map((s) => ({ run: s.run, order: idx.get(s.run), type: 'sighting' })),
       ...verifications.map((v) => ({ run: v.run, order: idx.get(v.run), type: 'verification', verdict: v.verdict, at_step: v.at_step })),
     ];
     findings[id] = {
-      title: last?.title ?? e.title ?? '', kind: last?.kind ?? e.kind ?? 'ux', severity: last?.severity ?? e.severity ?? null,
+      title: last?.title ?? e.title ?? '', title_local: last?.title_local ?? last?.title ?? e.title_local ?? e.title ?? '', kind: last?.kind ?? e.kind ?? 'ux', severity: last?.severity ?? e.severity ?? null,
       status: computeStatus({ label: e.label?.value ?? null, suppressed: last?.suppressed === true, events }),
-      label: e.label ?? null, last_seen: last?.run ?? null, check: sightings.findLast((s) => s.check)?.check ?? null,
-      sightings, verifications,
+      label: e.label ?? null, decision: decisionOf(e.label, decisions), last_seen: last?.run ?? null,
+      check: sightings.findLast((s) => s.check)?.check ?? null, sightings, verifications, decisions,
     };
   }
   const out = { version: 1, runs: Object.fromEntries(order.map((n) => [n, ledger.runs[n]])), findings };
@@ -305,14 +331,14 @@ export function verifyTable(project, run) {
       ? 'not_reproduced (no step: counted as unreachable)'
       : `${v.verdict}${v.at_step != null ? ` (step ${v.at_step})` : ''}`;
     const shot = v.at_screenshot ? `[screenshot](${v.at_screenshot})` : '';
-    lines.push(`| ${id} ${cell(e.title)} | ${verdict} | ${STATUS_WORDS[e.status] ?? e.status} | ${shot} | ${cell(v.note)} |`);
+    lines.push(`| ${id} ${cell(e.title_local || e.title)} | ${verdict} | ${STATUS_WORDS[e.status] ?? e.status} | ${shot} | ${cell(v.note)} |`);
   }
   return `${lines.join('\n')}\n`;
 }
 
 export function statusLines(project) {
   const ledger = loadLedger(project);
-  return Object.entries(ledger.findings).map(([id, e]) => `${id}\t${e.kind === 'ux' ? e.status : e.kind}\t${e.title}\n`).join('');
+  return Object.entries(ledger.findings).map(([id, e]) => `${id}\t${e.kind === 'ux' ? e.status : e.kind}\t${e.title_local || e.title}\n`).join('');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

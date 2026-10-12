@@ -138,3 +138,15 @@ test('a sighting after fixed is a regression; after one clean check it is just o
   // events arrive unsorted: order decides, not array position
   assert.equal(computeStatus({ events: [S('b', 3), ...fixed] }), 'regressed');
 });
+
+test('a line with a "— suggest:" segment before the label parses as before', () => {
+  const { labels, warnings } = parseFeedback([
+    '## Run 2026-10-12 (runs/2026-10-12/report.md)',
+    '- F-03 ไม่มีอะไรบอกว่าเสียงกำลังเล่น — suggest: keep (docs/my-prd.md:42) — label: valid — note: ok',
+    '- F-04 Save is silent — suggest: fix — label: ? — note:',
+    '- F-05 Jargon — suggest: ask — label: not real — note: intended',
+  ].join('\n'));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(labels.map((l) => [l.id, l.run, l.label, l.note]), [
+    ['F-03', '2026-10-12', 'valid', 'ok'], ['F-04', '2026-10-12', null, ''], ['F-05', '2026-10-12', 'not real', 'intended']]);
+});
