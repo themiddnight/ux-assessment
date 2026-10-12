@@ -1,0 +1,17 @@
+<canvas id="0:1" name="Mobile">
+  <frame id="1:10" name="Welcome" x="100" y="200" width="120" height="240">
+    <text id="1:11" name="Welcome back" x="10" y="10" width="100" height="20" />
+    <rounded-rectangle id="1:12" name="Card" x="10" y="50" width="100" height="60">
+      <text id="1:13" name="Save &amp; continue" x="10" y="10" width="80" height="16" />
+    </rounded-rectangle>
+    <instance id="1:14" name="Button / Primary" x="10" y="200" width="100" height="40" />
+    <vector id="1:15" name="Ghost" x="0" y="0" width="10" height="10" hidden="true" />
+    <group id="1:16" name="No box" />
+  </frame>
+  <frame id="1:20" name="Checkout" x="300" y="200" width="120" height="240">
+    <text id="1:21" name="Back" x="10" y="10" width="40" height="16" />
+  </frame>
+  <frame id="1:30" name="Empty" x="100" y="600" width="100" height="100" />
+  <line id="1:50" name="Arrow" x="225" y="320" width="70" height="0" />
+  <vector id="1:51" name="Doodle" x="500" y="500" width="50" height="50" />
+</canvas>

@@ -1,0 +1,9 @@
+{
+  "err": null,
+  "images": {
+    "1:10": "{{BASE}}/img/welcome.png",
+    "1:20": "{{BASE}}/img/checkout.png",
+    "1:31": null,
+    "1:32": "{{BASE}}/img/dialog.png"
+  }
+}

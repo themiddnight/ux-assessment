@@ -1,0 +1,12 @@
+{
+  "name": "Shop",
+  "version": "2207",
+  "document": {
+    "id": "0:0",
+    "type": "DOCUMENT",
+    "children": [
+      { "id": "0:1", "name": "Mobile", "type": "CANVAS", "children": [{ "id": "1:10", "type": "FRAME" }, { "id": "1:20", "type": "FRAME" }, { "id": "1:30", "type": "SECTION" }] },
+      { "id": "0:2", "name": "Scratch", "type": "CANVAS", "children": [] }
+    ]
+  }
+}

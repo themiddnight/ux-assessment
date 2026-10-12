@@ -1,0 +1,58 @@
+{
+  "flowStartingPoints": [{ "nodeId": "1:10", "name": "Start" }],
+  "frames": [
+    {
+      "id": "1:10", "name": "Welcome",
+      "absoluteBoundingBox": { "x": 100, "y": 200, "width": 120, "height": 240 },
+      "reactions": [],
+      "nodes": [
+        {
+          "id": "1:11", "type": "TEXT", "name": "Welcome back", "parentId": "1:10", "visible": true,
+          "absoluteBoundingBox": { "x": 110, "y": 210, "width": 100, "height": 20 },
+          "characters": "Welcome back", "fontSize": 20, "imageFill": false, "reactions": []
+        },
+        {
+          "id": "1:13", "type": "TEXT", "name": "Save & continue", "parentId": "1:12", "visible": true,
+          "absoluteBoundingBox": { "x": 120, "y": 260, "width": 80, "height": 16 },
+          "characters": "Save & continue", "fontSize": 14, "imageFill": false, "reactions": []
+        },
+        {
+          "id": "1:14", "type": "INSTANCE", "name": "Button / Primary", "parentId": "1:10", "visible": true,
+          "absoluteBoundingBox": { "x": 110, "y": 400, "width": 100, "height": 40 },
+          "characters": null, "fontSize": null, "imageFill": true,
+          "reactions": [
+            {
+              "trigger": { "type": "ON_CLICK" },
+              "actions": [{ "type": "NODE", "destinationId": "1:20", "navigation": "NAVIGATE" }],
+              "action": { "type": "NODE", "destinationId": "1:20", "navigation": "NAVIGATE" }
+            }
+          ]
+        },
+        {
+          "id": "1:60", "type": "TEXT", "name": "Fine print", "parentId": "1:10", "visible": true,
+          "absoluteBoundingBox": { "x": 110, "y": 350, "width": 60, "height": 14 },
+          "characters": "Only in the script", "fontSize": null, "imageFill": false,
+          "reactions": [{ "trigger": { "type": "ON_PRESS" }, "action": { "type": "NODE", "destinationId": "1:20", "navigation": "NAVIGATE" } }]
+        },
+        {
+          "id": "1:61", "type": "TEXT", "name": "Removed", "parentId": "1:10", "visible": false,
+          "absoluteBoundingBox": { "x": 110, "y": 370, "width": 60, "height": 14 },
+          "characters": "Invisible", "fontSize": 12, "imageFill": false, "reactions": []
+        }
+      ]
+    },
+    {
+      "id": "1:20", "name": "Checkout",
+      "absoluteBoundingBox": { "x": 300, "y": 200, "width": 120, "height": 240 },
+      "reactions": [{ "trigger": { "type": "ON_CLICK" }, "actions": [{ "type": "NODE", "destinationId": "1:10", "navigation": "NAVIGATE" }] }],
+      "nodes": [
+        {
+          "id": "1:21", "type": "TEXT", "name": "Back", "parentId": "1:20", "visible": true,
+          "absoluteBoundingBox": { "x": 310, "y": 210, "width": 40, "height": 16 },
+          "characters": "Back", "fontSize": 14, "imageFill": false,
+          "reactions": [{ "trigger": { "type": "ON_CLICK" }, "actions": [{ "type": "BACK" }] }]
+        }
+      ]
+    }
+  ]
+}
