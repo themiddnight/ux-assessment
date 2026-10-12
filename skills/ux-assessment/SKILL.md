@@ -140,7 +140,8 @@ curated pack in `$PLUGIN/knowledge/packs/` whose dimensions match; otherwise wri
 
 First tell the user in two sentences what this can and cannot find (`knowledge/charter.md`).
 Then, by mode, using `knowledge/intake.md`:
-- **Guided**: the six rounds, one AskUserQuestion card each.
+- **Guided**: the six rounds, one AskUserQuestion card each. Round 1 asks for a product document
+  (1.3) only when the project has none.
 - **Quick**: the Quick subset (one or two cards).
 - **Expert**: draft `.ux-assessment/charter.md` from recon, the pack and the intake defaults; tell
   the user to edit it directly; ask **I've edited it** · **Use it as is**; re-read it and continue.

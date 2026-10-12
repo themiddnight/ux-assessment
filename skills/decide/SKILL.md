@@ -89,4 +89,7 @@ only: when the main skill's step 9b sent you here, go back to it and continue wi
 10. **Tell the user.** How many findings are to fix, how many stay as they are, and how many need
     their answer. List each `ask` finding as `F-03 · <title_local>` with the choice it needs, in
     one line. Say where the report is, and that these are proposals: `/ux-assessment` → Label
-    findings is where they answer.
+    findings is where they answer. When step 2 found no product document and some findings
+    need their answer, add one line: those wait for them because nothing written says what was
+    intended, and with a requirements document (`/ux-assessment:settings`) more of them could be
+    decided next time.

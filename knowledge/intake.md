@@ -29,6 +29,26 @@ right?"
 - Options: {X} · {Y} · Not sure (→ D7: behaviour from the running app, intent from the docs).
 - Decides: app-profile *Conflicts*; a documented feature nobody finds becomes a scenario.
 
+**1.3** Only when the project has no product document: run
+`node "$PLUGIN/driver/decide.mjs" docs <project>`, and ask when `files` is empty or holds nothing
+but `README*`, `AGENTS.md` and `CLAUDE.md`. Otherwise skip it and record `from recon`. It goes on
+the Round 1 card, so it costs no extra card. "Is there a document that says how this app is meant
+to work, such as requirements or a spec?"
+- Why: with it I can tell a problem from something you built on purpose, and ask you less later.
+- Options: Nothing is written down (recommended) · Yes, in this project · Yes, somewhere else ·
+  Not sure.
+- Yes, in this project → ask for the path in plain chat. Write `product_docs` in `config.yaml`:
+  the default list (`decide.mjs docs` prints it as `patterns`) plus their path.
+- Yes, somewhere else → ask them to paste a link or the text in plain chat. If a tool in this
+  session can open the link, open it; otherwise ask for the text or an exported file. Save it as
+  `<project>/.ux-assessment/docs/<short-name>.md`: first the line
+  `<!-- source: <where it came from> · saved: <date> -->`, then the text as it was, not a summary.
+  Never ask for a password or a token to reach it.
+- Decides: what the decide step reads (SPEC D35). Read the document now and use it for the
+  charter's "What this app is" and success criteria. Do not write Intended behaviors lines from
+  it: the decide step offers those later, each with a cited source.
+- Asked once per project: the answer is in the intake record, and a later run reuses the charter.
+
 ## Round 2 — Why test now
 
 **2.1** "What made you want to test now?"
@@ -124,6 +144,8 @@ Perception is not asked: the driver supports screenshots only; record `screensho
 One card (a second only if needed): **1.1**, **3.1** (with 3.2 folded in: "…and is that you?"),
 **3.4**, **6.4**. Second card only for recon conflicts (**1.2**) or accounts (**6.3**).
 Everything else takes its unattended default, recorded as `not sure → default`.
+**1.3** is not asked in Quick mode. When its condition holds, say in one line that no product
+document was found and that `/ux-assessment:settings` (or Settings in the menu) sets where one is.
 
 ## Unattended defaults
 
@@ -133,6 +155,7 @@ Each is recorded as `assumption (unattended)`.
 |---|---|
 | 1.1 | recon's summary and audience |
 | 1.2 | D7: behaviour from the running app, intent from the docs; conflict kept as a scenario if it is user-facing |
+| 1.3 | nothing is written down; an unattended run never saves a document |
 | 2.1 | about to show it to people for the first time |
 | 2.2 | skipped |
 | 3.1 | recon's most likely user, matched to a pack archetype |

@@ -56,6 +56,7 @@ stay under `.ux-assessment/` with owner-only permissions and outside Git.
 3. **Intake.** Explain in plain language what simulated users can and cannot
    find. Ask the mode's questions from `knowledge/intake.md`: Guided has six
    short rounds, Quick has one or two cards, Expert lets the user edit a draft.
+   Question 1.3 (a product document) is asked only when the project has none.
    Write `charter.md` and `config.yaml` from `knowledge/charter.md`, including
    the intake record and safety settings.
 4. **Personas and plan.** Use `knowledge/personas.md` coverage rules and schema.

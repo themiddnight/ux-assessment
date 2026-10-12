@@ -119,6 +119,19 @@ earlier in the same conversation; unattended runs save nothing. An absolute
 path outside the project is allowed, because the developer wrote it. At most 200 files; beyond
 that, a warning names how many were left out.
 
+### Asking for a document
+
+The skill asks for a product document only when it would change the result, and once per project.
+
+- Intake question 1.3 sits on the Round 1 card, and only when `decide.mjs docs` finds nothing but
+  `README*`, `AGENTS.md` and `CLAUDE.md`. A path in the project goes into `product_docs`; a
+  document from elsewhere is saved under `.ux-assessment/docs/`. The answer is in the charter's
+  intake record, and later runs reuse the charter, so it is not asked again.
+- Quick mode does not ask: it says in one line that no document was found.
+- Unattended runs assume there is none and save nothing.
+- After decide, when no document was found and some findings are `ask`, one line says that a
+  requirements document would let more of them be decided.
+
 ## Driver
 
 ### `driver/decide.mjs`
