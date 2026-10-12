@@ -91,7 +91,9 @@ when the sources disagree. `fix` needs none.
 
 `node "$PLUGIN/driver/decide.mjs" record` reads every cited file and looks for the quote in it. It
 corrects a wrong line number. It drops a source whose file is missing, or lies outside the project
-and the product documents, or does not contain the quote. A `keep` left without a source becomes
+and the product documents, or does not contain the quote. Inside `.ux-assessment/`, only
+`charter.md` and the saved documents under `docs/` can be cited: a run's own files (the report,
+the findings, `decisions.yaml`) are not evidence of intent. A `keep` left without a source becomes
 `ask`, and the report says so. A guessed quote therefore gains nothing: when you have not read a
 line that says the behavior is on purpose, the outcome is not `keep`.
 
@@ -151,3 +153,5 @@ decisions:
   Put every option in double quotes: an unquoted `Keep: …` is read as a map, not as text.
   Empty for `fix` and `keep`.
 - `guard`: always `null`. `record` sets it when it changed your decision.
+- Do not write a `checked` key. `record` adds `checked: true`, and the ledger reads only a file
+  that has it.

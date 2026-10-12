@@ -53,6 +53,7 @@ Written by the decide agent, then checked and rewritten by `decide.mjs record`.
 ```yaml
 run: 2026-10-12
 decided_at: 2026-10-12T09:30:00.000Z
+checked: true                 # written by `record`; `ledger.mjs sync` ignores a file without it
 decisions:
   - id: F-03
     decision: keep            # fix | keep | ask
@@ -173,6 +174,13 @@ paths of its screenshots.
 | a source whose quote is not in the file (whitespace-normalized) | source dropped |
 | a source whose quote is in the file at another line | `line` corrected, no guard |
 | `keep` whose sources were all dropped | `ask` |
+| a source under `.ux-assessment/` other than `charter.md` and `docs/` | source dropped: a run's own files are not evidence |
+| an `ask` with fewer than two options | the default two: "Fix it", "Keep: leave it as it is" |
+| an option that YAML read as a map (`- Keep: …` unquoted) | turned back into text |
+
+Paths are compared by real path, so a symlink cannot carry a source out of the project.
+`sync` also drops a decision whose id is not among that run's findings, which a re-triage can
+leave behind.
 
 `record` is idempotent: running it twice gives the same files.
 
